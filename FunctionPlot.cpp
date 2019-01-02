@@ -70,10 +70,11 @@ class MyApp: public Platform::Application {
 };
 
 MyApp::MyApp(const Arguments& arguments):
-    Platform::Application{arguments, Configuration{}.setTitle("My Magnum Testing App")}
+    Platform::Application{arguments, Configuration{}.setTitle("My Magnum Testing App"), GLConfiguration{}.setSampleCount(16)}
 {
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
-    // GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+    // Multisampling is enabled by default.
+    // GL::Renderer::enable(GL::Renderer::Feature::Multisampling);
 
     // const Trade::MeshData3D cube = Primitives::cubeSolid();
     const float gauss_c = 5.0f;
