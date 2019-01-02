@@ -6,7 +6,6 @@
 #include <Magnum/MeshTools/Interleave.h>
 #include <Magnum/MeshTools/CompressIndices.h>
 #include <Magnum/Platform/Sdl2Application.h>
-#include <Magnum/Primitives/Cube.h>
 #include <Magnum/Shaders/Phong.h>
 #include <Magnum/Trade/MeshData3D.h>
 
@@ -70,13 +69,12 @@ class MyApp: public Platform::Application {
 };
 
 MyApp::MyApp(const Arguments& arguments):
-    Platform::Application{arguments, Configuration{}.setTitle("My Magnum Testing App"), GLConfiguration{}.setSampleCount(16)}
+    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}
 {
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     // Multisampling is enabled by default.
     // GL::Renderer::enable(GL::Renderer::Feature::Multisampling);
 
-    // const Trade::MeshData3D cube = Primitives::cubeSolid();
     const float gauss_c = 5.0f;
     auto f = [&](float x, float y) {
         return std::exp(-gauss_c * (x*x + y*y));
@@ -85,19 +83,19 @@ MyApp::MyApp(const Arguments& arguments):
         const float e = std::exp(-gauss_c * (x*x + y*y));
         return Vector2{-2*gauss_c*x*e, -2*gauss_c*y*e};
     };
-    const Trade::MeshData3D cube = mathFunctionMeshData(-1.0, 1.0, -1.0, 1.0, f, df);
+    const Trade::MeshData3D functionMeshData = mathFunctionMeshData(-1.0, 1.0, -1.0, 1.0, f, df);
 
-    _vertexBuffer.setData(MeshTools::interleave(cube.positions(0), cube.normals(0)));
+    _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
 
     Containers::Array<char> indexData;
     MeshIndexType indexType;
     UnsignedInt indexStart, indexEnd;
     std::tie(indexData, indexType, indexStart, indexEnd) =
-        MeshTools::compressIndices(cube.indices());
+        MeshTools::compressIndices(functionMeshData.indices());
     _indexBuffer.setData(indexData);
 
-    _mesh.setPrimitive(cube.primitive())
-        .setCount(cube.indices().size())
+    _mesh.setPrimitive(functionMeshData.primitive())
+        .setCount(functionMeshData.indices().size())
         .addVertexBuffer(_vertexBuffer, 0, Shaders::Phong::Position{},
                                            Shaders::Phong::Normal{})
         .setIndexBuffer(_indexBuffer, 0, indexType, indexStart, indexEnd);
