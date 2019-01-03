@@ -3,10 +3,9 @@
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Mesh.h>
 #include <Magnum/GL/Renderer.h>
-#include <Magnum/MeshTools/Interleave.h>
 #include <Magnum/MeshTools/CompressIndices.h>
 #include <Magnum/Platform/Sdl2Application.h>
-#include <Magnum/Shaders/Phong.h>
+#include <Magnum/Shaders/MeshVisualizer.h>
 #include <Magnum/Trade/MeshData3D.h>
 
 using namespace Magnum;
@@ -60,7 +59,7 @@ class MyApp: public Platform::Application {
 
         GL::Buffer _indexBuffer, _vertexBuffer;
         GL::Mesh _mesh;
-        Shaders::Phong _shader;
+        Shaders::MeshVisualizer _shader;
 
         Matrix4 _transformation, _projection;
         Vector2i _previousMousePosition;
@@ -68,7 +67,8 @@ class MyApp: public Platform::Application {
 };
 
 MyApp::MyApp(const Arguments& arguments):
-    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}
+    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(8)},
+    _shader{Shaders::MeshVisualizer::Flag::Wireframe|Shaders::MeshVisualizer::Flag::NoGeometryShader}
 {
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     // Multisampling is enabled by default.
@@ -84,20 +84,13 @@ MyApp::MyApp(const Arguments& arguments):
     };
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(-1.0, 1.0, -1.0, 1.0, f, df);
 
-    _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
-
-    Containers::Array<char> indexData;
-    MeshIndexType indexType;
-    UnsignedInt indexStart, indexEnd;
-    std::tie(indexData, indexType, indexStart, indexEnd) =
-        MeshTools::compressIndices(functionMeshData.indices());
-    _indexBuffer.setData(indexData);
+    _vertexBuffer.setData(functionMeshData.positions(0));
+    _indexBuffer.setData(functionMeshData.indices());
 
     _mesh.setPrimitive(functionMeshData.primitive())
         .setCount(functionMeshData.indices().size())
-        .addVertexBuffer(_vertexBuffer, 0, Shaders::Phong::Position{},
-                                           Shaders::Phong::Normal{})
-        .setIndexBuffer(_indexBuffer, 0, indexType, indexStart, indexEnd);
+        .addVertexBuffer(_vertexBuffer, 0, Shaders::MeshVisualizer::Position{})
+        .setIndexBuffer(_indexBuffer, 0, GL::MeshIndexType::UnsignedInt);
 
     _transformation = Matrix4::rotationX(-60.0_degf);
     _projection =
@@ -108,16 +101,13 @@ MyApp::MyApp(const Arguments& arguments):
 }
 
 void MyApp::drawEvent() {
-    GL::defaultFramebuffer.clear(
-        GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
+    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
 
-    _shader.setLightPosition({7.0f, 5.0f, 2.5f})
-        .setLightColor(Color3{1.0f})
-        .setDiffuseColor(_color)
-        .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.3f))
-        .setTransformationMatrix(_transformation)
-        .setNormalMatrix(_transformation.rotationScaling())
-        .setProjectionMatrix(_projection);
+    _shader
+        .setColor(0x2f83cc_rgbf)
+        .setWireframeColor(0xdcdcdc_rgbf)
+        .setTransformationProjectionMatrix(_projection * _transformation);
+
     _mesh.draw(_shader);
 
     swapBuffers();
