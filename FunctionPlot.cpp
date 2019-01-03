@@ -11,40 +11,36 @@
 using namespace Magnum;
 using namespace Magnum::Math::Literals;
 
-template <typename F, typename dF>
-Trade::MeshData3D mathFunctionMeshData(float x_min, float x_max, float y_min, float y_max, F evalF, dF evaldF) {
-    const int nx = 16, ny = 16;
+template <typename F>
+Trade::MeshData3D mathFunctionMeshDataTriangles(float x_min, float x_max, float y_min, float y_max, F evalF) {
+    const int nx = 8, ny = 8;
     std::vector<Vector3> positions{};
-    std::vector<Vector3> normals{};
     for (int j = 0; j <= ny; j++) {
         for (int i = 0; i <= nx; i++) {
             const float x = x_min + i * (x_max - x_min) / nx;
             const float y = y_min + j * (y_max - y_min) / ny;
             const float z = evalF(x, y);
-            const Vector2 df = evaldF(x, y);
-            const float nf = std::sqrt(df.x() * df.x() + df.y() * df.y() + 1.0f);
             positions.push_back(Vector3{x, y, z});
-            normals.push_back(Vector3{-df.x() / nf, -df.y() / nf, 1 / nf});
         }
     }
 
-    auto index = [=](int i, int j) { return j * (nx + 1) + i; };
+    auto getPositionAtIndex = [&](int i, int j) { return positions[j * (nx + 1) + i]; };
 
-    std::vector<UnsignedInt> indices{};
+    std::vector<Vector3> positionsDirect{};
     for (int j = 0; j <= ny - 1; j++) {
         for (int i = 1; i <= nx; i++) {
-            indices.push_back(index(i - 1, j));
-            indices.push_back(index(i - 1, j + 1));
-            indices.push_back(index(i, j));
+            positionsDirect.push_back(getPositionAtIndex(i - 1, j));
+            positionsDirect.push_back(getPositionAtIndex(i - 1, j + 1));
+            positionsDirect.push_back(getPositionAtIndex(i, j));
 
-            indices.push_back(index(i - 1, j + 1));
-            indices.push_back(index(i, j + 1));
-            indices.push_back(index(i, j));
+            positionsDirect.push_back(getPositionAtIndex(i - 1, j + 1));
+            positionsDirect.push_back(getPositionAtIndex(i, j + 1));
+            positionsDirect.push_back(getPositionAtIndex(i, j));
         }
     }
 
     return Trade::MeshData3D{MeshPrimitive::Triangles,
-        indices, {positions}, {normals}, {}, {}, nullptr};
+        {}, {positionsDirect}, {}, {}, {}, nullptr};
 }
 
 class MyApp: public Platform::Application {
@@ -57,7 +53,7 @@ class MyApp: public Platform::Application {
         void mouseReleaseEvent(MouseEvent& event) override;
         void mouseMoveEvent(MouseMoveEvent& event) override;
 
-        GL::Buffer _indexBuffer, _vertexBuffer;
+        GL::Buffer _vertexBuffer;
         GL::Mesh _mesh;
         Shaders::MeshVisualizer _shader;
 
@@ -78,19 +74,19 @@ MyApp::MyApp(const Arguments& arguments):
     auto f = [=](float x, float y) {
         return std::exp(-gauss_c * (x*x + y*y));
     };
+#if 0
     auto df = [=](float x, float y) {
         const float e = std::exp(-gauss_c * (x*x + y*y));
         return Vector2{-2*gauss_c*x*e, -2*gauss_c*y*e};
     };
-    const Trade::MeshData3D functionMeshData = mathFunctionMeshData(-1.0, 1.0, -1.0, 1.0, f, df);
+#endif
+    const Trade::MeshData3D functionMeshData = mathFunctionMeshDataTriangles(-1.0, 1.0, -1.0, 1.0, f);
 
     _vertexBuffer.setData(functionMeshData.positions(0));
-    _indexBuffer.setData(functionMeshData.indices());
 
     _mesh.setPrimitive(functionMeshData.primitive())
-        .setCount(functionMeshData.indices().size())
-        .addVertexBuffer(_vertexBuffer, 0, Shaders::MeshVisualizer::Position{})
-        .setIndexBuffer(_indexBuffer, 0, GL::MeshIndexType::UnsignedInt);
+        .setCount(functionMeshData.positions(0).size())
+        .addVertexBuffer(_vertexBuffer, 0, Shaders::MeshVisualizer::Position{});
 
     _transformation = Matrix4::rotationX(-60.0_degf);
     _projection =
