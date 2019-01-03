@@ -14,14 +14,13 @@ using namespace Magnum::Math::Literals;
 
 template <typename F, typename dF>
 Trade::MeshData3D mathFunctionMeshData(float x_min, float x_max, float y_min, float y_max, F evalF, dF evaldF) {
-    const int i_min = -20, i_max = 20;
-    const int j_min = -20, j_max = 20;
+    const int nx = 16, ny = 16;
     std::vector<Vector3> positions{};
     std::vector<Vector3> normals{};
-    for (int j = j_min; j <= j_max; j++) {
-        for (int i = i_min; i <= i_max; i++) {
-            const float x = x_min + (i - i_min) * (x_max - x_min) / (i_max - i_min);
-            const float y = y_min + (j - j_min) * (y_max - y_min) / (j_max - j_min);
+    for (int j = 0; j <= ny; j++) {
+        for (int i = 0; i <= nx; i++) {
+            const float x = x_min + i * (x_max - x_min) / nx;
+            const float y = y_min + j * (y_max - y_min) / ny;
             const float z = evalF(x, y);
             const Vector2 df = evaldF(x, y);
             const float nf = std::sqrt(df.x() * df.x() + df.y() * df.y() + 1.0f);
@@ -30,11 +29,11 @@ Trade::MeshData3D mathFunctionMeshData(float x_min, float x_max, float y_min, fl
         }
     }
 
-    auto index = [&](int i, int j) { return (j - j_min) * (i_max - i_min + 1) + (i - i_min); };
+    auto index = [=](int i, int j) { return j * (nx + 1) + i; };
 
     std::vector<UnsignedInt> indices{};
-    for (int j = j_min; j <= j_max - 1; j++) {
-        for (int i = i_min + 1; i <= i_max; i++) {
+    for (int j = 0; j <= ny - 1; j++) {
+        for (int i = 1; i <= nx; i++) {
             indices.push_back(index(i - 1, j));
             indices.push_back(index(i - 1, j + 1));
             indices.push_back(index(i, j));
