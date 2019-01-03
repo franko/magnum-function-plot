@@ -100,13 +100,12 @@ MyApp::MyApp(const Arguments& arguments):
                                            Shaders::Phong::Normal{})
         .setIndexBuffer(_indexBuffer, 0, indexType, indexStart, indexEnd);
 
-    _transformation =
-        Matrix4::rotationX(30.0_degf)*Matrix4::rotationY(40.0_degf);
+    _transformation = Matrix4::rotationX(-60.0_degf);
     _projection =
         Matrix4::perspectiveProjection(
             35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
-        Matrix4::translation(Vector3::zAxis(-10.0f));
-    _color = Color3::fromHsv(35.0_degf, 1.0f, 1.0f);
+        Matrix4::translation(Vector3::zAxis(-8.0f));
+    _color = Color3::fromHsv(195.0_degf, 1.0f, 1.0f);
 }
 
 void MyApp::drawEvent() {
@@ -133,10 +132,7 @@ void MyApp::mousePressEvent(MouseEvent& event) {
 }
 
 void MyApp::mouseReleaseEvent(MouseEvent& event) {
-    _color = Color3::fromHsv(_color.hue() + 50.0_degf, 1.0f, 1.0f);
-
     event.setAccepted();
-    redraw();
 }
 
 void MyApp::mouseMoveEvent(MouseMoveEvent& event) {
