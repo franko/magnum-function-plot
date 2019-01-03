@@ -14,8 +14,8 @@ using namespace Magnum::Math::Literals;
 
 template <typename F, typename dF>
 Trade::MeshData3D mathFunctionMeshData(float x_min, float x_max, float y_min, float y_max, F evalF, dF evaldF) {
-    const int i_min = -10, i_max = 10;
-    const int j_min = -10, j_max = 10;
+    const int i_min = -20, i_max = 20;
+    const int j_min = -20, j_max = 20;
     std::vector<Vector3> positions{};
     std::vector<Vector3> normals{};
     for (int j = j_min; j <= j_max; j++) {
@@ -76,7 +76,7 @@ MyApp::MyApp(const Arguments& arguments):
     // GL::Renderer::enable(GL::Renderer::Feature::Multisampling);
 
     const float gauss_c = 5.0f;
-    auto f = [&](float x, float y) {
+    auto f = [=](float x, float y) {
         return std::exp(-gauss_c * (x*x + y*y));
     };
     auto df = [=](float x, float y) {
