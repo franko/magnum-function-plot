@@ -114,6 +114,8 @@ MyApp::MyApp(const Arguments& arguments):
     Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}
 {
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+    GL::Renderer::enable(GL::Renderer::Feature::PolygonOffsetFill);
+    GL::Renderer::setPolygonOffset(1.0f, 1.0f);
     // Multisampling is enabled by default.
     // GL::Renderer::enable(GL::Renderer::Feature::Multisampling);
 
