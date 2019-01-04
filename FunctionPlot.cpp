@@ -68,7 +68,7 @@ class MyApp: public Platform::Application {
 
 MyApp::MyApp(const Arguments& arguments):
     Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(8)},
-    _shader{Shaders::MeshVisualizer::Flag::Wireframe|Shaders::MeshVisualizer::Flag::NoGeometryShader}
+    _shader{Shaders::MeshVisualizer::Flag::Wireframe}
 {
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     // Multisampling is enabled by default.
@@ -106,6 +106,7 @@ void MyApp::drawEvent() {
     _shader
         .setColor(0x2f83cc_rgbf)
         .setWireframeColor(0xdcdcdc_rgbf)
+        .setViewportSize(Vector2{framebufferSize()})
         .setTransformationProjectionMatrix(_projection * _transformation);
 
     _mesh.draw(_shader);
