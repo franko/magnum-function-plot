@@ -113,7 +113,8 @@ MyApp::MyApp(const Arguments& arguments):
         const float e = std::exp(-gauss_c * (x*x + y*y));
         return Vector2{-2*gauss_c*x*e, -2*gauss_c*y*e};
     };
-    const CartesianGrid grid{Vector2{-1.0f, -1.0f}, Vector2{1.0f, 1.0f}, 12, 12};
+    // To obtain a cartesianGrid use CartesianGrid<NoTransform, 4>
+    const CartesianGrid<CircleTransform, 4> grid{Vector2{-1.0f, -1.0f}, Vector2{1.0f, 1.0f}, 40, 40};
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
 

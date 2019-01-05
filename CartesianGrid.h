@@ -1,7 +1,25 @@
 #pragma once
-
+#include <cmath>
+#include <limits>
 #include <Magnum/Math/Vector2.h>
 
+struct NoTransform {
+    static inline void transform(float& x, float& y) { }
+};
+
+struct CircleTransform {
+    static inline void transform(float& x, float& y) {
+        const float absX = fabs(x), absY = fabs(y);
+        const float norm = sqrt(absX*absX + absY*absY);
+        if (norm > std::numeric_limits<float>::epsilon()) {
+            const float ratio = (absX > absY ? absX / norm : absY / norm);
+            x *= ratio;
+            y *= ratio;
+        }
+    }
+};
+
+template <typename Transformer = NoTransform, unsigned int LinesRatio = 1>
 class CartesianGrid {
 public:
     CartesianGrid(Magnum::Vector2 llc, Magnum::Vector2 urc, int nx, int ny):
@@ -16,8 +34,9 @@ public:
     void spanGridPoints(F eval) const {
         for (int j = 0; j <= _ny; j++) {
             for (int i = 0; i <= _nx; i++) {
-                const float x = _llc.x() + i * (_urc.x() - _llc.x()) / _nx;
-                const float y = _llc.y() + j * (_urc.y() - _llc.y()) / _ny;;
+                float x = _llc.x() + i * (_urc.x() - _llc.x()) / _nx;
+                float y = _llc.y() + j * (_urc.y() - _llc.y()) / _ny;;
+                Transformer::transform(x, y);
                 eval(x, y);
             }
         }
@@ -38,18 +57,18 @@ public:
     }
 
     int linesCount() const {
-        return 2 * _nx * (_ny + 1) + 2 * (_nx + 1) * _ny;
+        return (2 * _nx * (_ny + 1) + 2 * (_nx + 1) * _ny) / LinesRatio;
     }
 
     template <typename F>
     void spanLinesIndices(F eval) const {
-        for (int j = 0; j <= _ny; j++) {
+        for (int j = 0; j <= _ny; j += LinesRatio) {
             for (int i = 1; i <= _nx; i++) {
                 eval(this->pointIndex(i - 1, j), this->pointIndex(i, j));
             }
         }
         for (int j = 1; j <= _ny; j++) {
-            for (int i = 0; i <= _nx; i++) {
+            for (int i = 0; i <= _nx; i += LinesRatio) {
                 eval(this->pointIndex(i, j - 1), this->pointIndex(i, j));
             }
         }
