@@ -20,9 +20,9 @@ std::vector<Vector3> mathFunctionPositions(const Grid& grid, F evalF) {
     std::vector<Vector3> positions{};
     const int nPoints = grid.pointsCount();
     positions.reserve(nPoints);
-    auto evalPointF = [&](const float x, const float y) {
-        const float z = evalF(x, y);
-        positions.push_back(Vector3{x, y, z});
+    auto evalPointF = [&](const Vector2 p) {
+        const float z = evalF(p.x(), p.y());
+        positions.push_back(Vector3{p.x(), p.y(), z});
     };
     grid.spanGridPoints(evalPointF);
     return positions;
@@ -35,10 +35,10 @@ std::pair<std::vector<Vector3>, std::vector<Vector3>> mathFunctionPositionsNorma
     const int nPoints = grid.pointsCount();
     positions.reserve(nPoints);
     normals.reserve(nPoints);
-    auto evalPointF = [&](const float x, const float y) {
-        const float z = evalF(x, y);
-        positions.push_back(Vector3{x, y, z});
-        const Vector2 df = evaldF(x, y);
+    auto evalPointF = [&](const Vector2 p) {
+        const float z = evalF(p.x(), p.y());
+        positions.push_back(Vector3{p.x(), p.y(), z});
+        const Vector2 df = evaldF(p.x(), p.y());
         const float nf = std::sqrt(df.x() * df.x() + df.y() * df.y() + 1.0f);
         normals.push_back(Vector3{-df.x() / nf, -df.y() / nf, 1 / nf});
     };

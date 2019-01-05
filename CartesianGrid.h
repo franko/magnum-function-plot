@@ -4,18 +4,18 @@
 #include <Magnum/Math/Vector2.h>
 
 struct NoTransform {
-    static inline void transform(float& x, float& y) { }
+    static inline Magnum::Vector2 eval(Magnum::Vector2 p) { return p; }
 };
 
 struct CircleTransform {
-    static inline void transform(float& x, float& y) {
-        const float absX = fabs(x), absY = fabs(y);
+    static inline Magnum::Vector2 eval(Magnum::Vector2 p) {
+        const float absX = fabs(p.x()), absY = fabs(p.y());
         const float norm = sqrt(absX*absX + absY*absY);
         if (norm > std::numeric_limits<float>::epsilon()) {
             const float ratio = (absX > absY ? absX / norm : absY / norm);
-            x *= ratio;
-            y *= ratio;
+            return ratio * p;
         }
+        return p;
     }
 };
 
@@ -31,13 +31,13 @@ public:
     }
 
     template <typename F>
-    void spanGridPoints(F eval) const {
+    void spanGridPoints(F pointEvalFunction) const {
         for (int j = 0; j <= _ny; j++) {
             for (int i = 0; i <= _nx; i++) {
-                float x = _llc.x() + i * (_urc.x() - _llc.x()) / _nx;
-                float y = _llc.y() + j * (_urc.y() - _llc.y()) / _ny;;
-                Transformer::transform(x, y);
-                eval(x, y);
+                const float x = _llc.x() + i * (_urc.x() - _llc.x()) / _nx;
+                const float y = _llc.y() + j * (_urc.y() - _llc.y()) / _ny;;
+                Magnum::Vector2 p = Transformer::eval(Magnum::Vector2{x, y});
+                pointEvalFunction(p);
             }
         }
     }
