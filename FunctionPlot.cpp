@@ -10,82 +10,68 @@
 #include <Magnum/Shaders/Phong.h>
 #include <Magnum/Shaders/Flat.h>
 #include <Magnum/Trade/MeshData3D.h>
+#include "CartesianGrid.h"
 
 using namespace Magnum;
 using namespace Magnum::Math::Literals;
 
-template <typename F, typename dF>
-std::pair<std::vector<Vector3>, std::vector<Vector3>> mathFunctionPositions(float x_min, float x_max, int nx, float y_min, float y_max, int ny, F evalF, dF evaldF, bool wantNormals) {
+template <typename F, typename Grid>
+std::vector<Vector3> mathFunctionPositions(const Grid& grid, F evalF) {
+    std::vector<Vector3> positions{};
+    const int nPoints = grid.pointsCount();
+    positions.reserve(nPoints);
+    auto evalPointF = [&](const float x, const float y) {
+        const float z = evalF(x, y);
+        positions.push_back(Vector3{x, y, z});
+    };
+    grid.spanGridPoints(evalPointF);
+    return positions;
+}
+
+template <typename F, typename dF, typename Grid>
+std::pair<std::vector<Vector3>, std::vector<Vector3>> mathFunctionPositionsNormals(const Grid& grid, F evalF, dF evaldF) {
     std::vector<Vector3> positions{};
     std::vector<Vector3> normals{};
-    positions.reserve((nx + 1) * (ny + 1));
-    if (wantNormals) {
-        normals.reserve((nx + 1) * (ny + 1));
-    }
-    for (int j = 0; j <= ny; j++) {
-        for (int i = 0; i <= nx; i++) {
-            const float x = x_min + i * (x_max - x_min) / nx;
-            const float y = y_min + j * (y_max - y_min) / ny;
-            const float z = evalF(x, y);
-            positions.push_back(Vector3{x, y, z});
-            if (wantNormals) {
-                const Vector2 df = evaldF(x, y);
-                const float nf = std::sqrt(df.x() * df.x() + df.y() * df.y() + 1.0f);
-                normals.push_back(Vector3{-df.x() / nf, -df.y() / nf, 1 / nf});
-            }
-        }
-    }
-
+    const int nPoints = grid.pointsCount();
+    positions.reserve(nPoints);
+    normals.reserve(nPoints);
+    auto evalPointF = [&](const float x, const float y) {
+        const float z = evalF(x, y);
+        positions.push_back(Vector3{x, y, z});
+        const Vector2 df = evaldF(x, y);
+        const float nf = std::sqrt(df.x() * df.x() + df.y() * df.y() + 1.0f);
+        normals.push_back(Vector3{-df.x() / nf, -df.y() / nf, 1 / nf});
+    };
+    grid.spanGridPoints(evalPointF);
     return std::make_pair(positions, normals);
 }
 
-template <typename F, typename dF>
-Trade::MeshData3D mathFunctionMeshData(float x_min, float x_max, int nx, float y_min, float y_max, int ny, F evalF, dF evaldF) {
+template <typename F, typename dF, typename Grid>
+Trade::MeshData3D mathFunctionMeshData(const Grid& grid, F evalF, dF evaldF) {
     std::vector<Vector3> positions{}, normals{};
-    std::tie(positions, normals) = mathFunctionPositions(x_min, x_max, nx, y_min, y_max, ny, evalF, evaldF, true);
-
-    auto index = [=](int i, int j) { return j * (nx + 1) + i; };
-
+    std::tie(positions, normals) = mathFunctionPositionsNormals(grid, evalF, evaldF);
     std::vector<UnsignedInt> indices{};
-    indices.reserve(6*ny*nx);
-    for (int j = 0; j <= ny - 1; j++) {
-        for (int i = 1; i <= nx; i++) {
-            indices.push_back(index(i - 1, j));
-            indices.push_back(index(i - 1, j + 1));
-            indices.push_back(index(i, j));
-
-            indices.push_back(index(i - 1, j + 1));
-            indices.push_back(index(i, j + 1));
-            indices.push_back(index(i, j));
-        }
-    }
-
+    indices.reserve(grid.trianglesCount());
+    auto evalTriangleF = [&](int indexA, int indexB, int indexC) {
+        indices.push_back(indexA);
+        indices.push_back(indexB);
+        indices.push_back(indexC);
+    };
+    grid.spanTrianglesIndices(evalTriangleF);
     return Trade::MeshData3D{MeshPrimitive::Triangles,
         indices, {positions}, {normals}, {}, {}, nullptr};
 }
 
-template <typename F, typename dF>
-Trade::MeshData3D mathFunctionLinesData(float x_min, float x_max, int nx, float y_min, float y_max, int ny, F evalF, dF evaldF) {
-    std::vector<Vector3> positions{};
-    std::tie(positions, std::ignore) = mathFunctionPositions(x_min, x_max, nx, y_min, y_max, ny, evalF, evaldF, false);
-
-    auto index = [=](int i, int j) { return j * (nx + 1) + i; };
-
+template <typename F, typename Grid>
+Trade::MeshData3D mathFunctionLinesData(const Grid& grid, F evalF) {
+    std::vector<Vector3> positions = mathFunctionPositions(grid, evalF);
     std::vector<UnsignedInt> indices{};
-    indices.reserve(2*nx*(ny + 1) + 2*(nx + 1)*ny);
-    for (int j = 0; j <= ny; j++) {
-        for (int i = 1; i <= nx; i++) {
-            indices.push_back(index(i - 1, j));
-            indices.push_back(index(i, j));
-        }
-    }
-    for (int j = 1; j <= ny; j++) {
-        for (int i = 0; i <= nx; i++) {
-            indices.push_back(index(i, j - 1));
-            indices.push_back(index(i, j));
-        }
-    }
-
+    indices.reserve(grid.linesCount());
+    auto evalLinesF = [&](int indexA, int indexB) {
+        indices.push_back(indexA);
+        indices.push_back(indexB);
+    };
+    grid.spanLinesIndices(evalLinesF);
     return Trade::MeshData3D{MeshPrimitive::Lines,
         indices, {positions}, {}, {}, {}, nullptr};
 }
@@ -127,8 +113,9 @@ MyApp::MyApp(const Arguments& arguments):
         const float e = std::exp(-gauss_c * (x*x + y*y));
         return Vector2{-2*gauss_c*x*e, -2*gauss_c*y*e};
     };
-    const Trade::MeshData3D functionMeshData = mathFunctionMeshData(-1.0, 1.0, 20, -1.0, 1.0, 20, f, df);
-    const Trade::MeshData3D functionLines = mathFunctionLinesData(-1.0, 1.0, 20, -1.0, 1.0, 20, f, df);
+    const CartesianGrid grid{Vector2{-1.0f, -1.0f}, Vector2{1.0f, 1.0f}, 12, 12};
+    const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
+    const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
 
     _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
 
