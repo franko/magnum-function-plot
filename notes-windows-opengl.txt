@@ -1,0 +1,101 @@
+# Notes about using OpenGL software renderer on Windows 7
+
+For systems with old or buggy OpenGL drivers.
+## Default Windows' OpenGL
+
+Using opengl32.dll from Windows 7, used by default. From C:\windows\system32.
+
+Very simple SDL2 application using Phong shader with indexed, interleaved position and normals.
+
+```
+Renderer: Intel(R) Q45/Q43 Express Chipset by Intel
+OpenGL version: 2.1.0 - Build 8.15.10.2182
+Using optional features:
+    GL_ARB_texture_filter_anisotropic
+    GL_ARB_vertex_array_object
+Using driver workarounds:
+    no-forward-compatible-core-context
+    intel-windows-glsl-exposes-unsupported-shading-language-420pack
+    no-layout-qualifiers-on-old-glsl
+Shader::compile(): compilation of vertex shader 1 succeeded with the following message:
+No errors.Shader::compile(): compilation of fragment shader 2 succeeded with the following message:
+No errors.AbstractShaderProgram::link(): linking succeeded with the following message:
+No errors.Shader::compile(): compilation of vertex shader 1 succeeded with the following message:
+No errors.Shader::compile(): compilation of fragment shader 2 succeeded with the following message:
+No errors.AbstractShaderProgram::link(): linking succeeded with the following message:
+No errors.Segmentation fault
+```
+
+## Mesa3D llvmpipe OpenGL
+
+Using opengl32.dll from Mesa3D llvmpipe, provided by Msys2 package `mingw64/mingw-w64-x86_64-mesa`. The opengl32.dll from Mesa3D is placed in the same folder of the executable. The same program of above works correctly:
+
+```
+Platform::Sdl2Application::tryCreate(): cannot create core context: Could not create GL context: The operation completed successfully.
+ (falling back to compatibility context)
+Renderer: llvmpipe (LLVM 5.0, 128 bits) by VMware, Inc.
+OpenGL version: 3.0 Mesa 18.0.2
+Using optional features:
+    GL_ARB_ES2_compatibility
+    GL_ARB_get_texture_sub_image
+    GL_ARB_invalidate_subdata
+    GL_ARB_multi_bind
+    GL_ARB_robustness
+    GL_ARB_separate_shader_objects
+    GL_ARB_texture_storage
+    GL_ARB_texture_storage_multisample
+    GL_ARB_vertex_array_object
+    GL_KHR_debug
+Using driver workarounds:
+    no-layout-qualifiers-on-old-glsl
+```
+
+Installed package:
+
+```sh
+pacman -S mingw64/mingw-w64-x86_64-mesa # (version 18.0.2-1)
+```
+
+Another possibility was to use the ANGLE package provided my Msys2, `mingw64/mingw-w64-x86_64-angleproject-git`. It provides the following files:
+
+```
+/mingw64/bin/libEGL.dll
+/mingw64/bin/libGLESv1_CM.dll
+/mingw64/bin/libGLESv2.dll
+/mingw64/include/EGL/egl.h
+/mingw64/include/EGL/eglext.h
+/mingw64/include/EGL/eglext_angle.h
+/mingw64/include/EGL/eglplatform.h
+/mingw64/include/GLES/egl.h
+/mingw64/include/GLES/gl.h
+/mingw64/include/GLES/glext.h
+/mingw64/include/GLES/glext_angle.h
+/mingw64/include/GLES/glext_explicit_context_autogen.inc
+/mingw64/include/GLES/glplatform.h
+/mingw64/include/GLES2/gl2.h
+/mingw64/include/GLES2/gl2ext.h
+/mingw64/include/GLES2/gl2ext_angle.h
+/mingw64/include/GLES2/gl2ext_explicit_context_autogen.inc
+/mingw64/include/GLES2/gl2platform.h
+/mingw64/include/GLES3/gl3.h
+/mingw64/include/GLES3/gl31.h
+/mingw64/include/GLES3/gl31ext_explicit_context_autogen.inc
+/mingw64/include/GLES3/gl32.h
+/mingw64/include/GLES3/gl3ext_explicit_context_autogen.inc
+/mingw64/include/GLES3/gl3platform.h
+/mingw64/include/GLSLANG/ShaderLang.h
+/mingw64/include/GLSLANG/ShaderVars.h
+/mingw64/include/KHR/khrplatform.h
+/mingw64/include/KHR/khrplatform.h.orig
+/mingw64/include/angle_gl.h
+/mingw64/include/angle_windowsstore.h
+/mingw64/include/export.h
+/mingw64/include/platform/Platform.h
+/mingw64/include/platform/WorkaroundsD3D.h
+/mingw64/lib/libEGL.a
+/mingw64/lib/libEGL.dll.a
+/mingw64/lib/libGLESv1_CM.a
+/mingw64/lib/libGLESv1_CM.dll.a
+/mingw64/lib/libGLESv2.a
+/mingw64/lib/libGLESv2.dll.a
+```
