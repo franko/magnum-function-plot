@@ -154,7 +154,7 @@ MyApp::MyApp(const Arguments& arguments):
         Matrix4::perspectiveProjection(
             35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
         Matrix4::translation(Vector3::zAxis(-8.0f));
-    _color = Color3::fromHsv(195.0_degf, 1.0f, 1.0f);
+    _color = 0x2f83cc_rgbf;
 }
 
 void MyApp::drawEvent() {
@@ -164,13 +164,13 @@ void MyApp::drawEvent() {
     _shader.setLightPosition({7.0f, 5.0f, 2.5f})
         .setLightColor(Color3{1.0f})
         .setDiffuseColor(_color)
-        .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.3f))
+        .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.6f))
         .setTransformationMatrix(transformation())
         .setNormalMatrix(transformation().rotationScaling().inverted().transposed())
         .setProjectionMatrix(_projection);
     _mesh.draw(_shader);
 
-    _flatShader.setColor(Color3{0.9f})
+    _flatShader.setColor(0xdcdcdc_rgbf)
         .setTransformationProjectionMatrix(_projection*transformation());
     _lines.draw(_flatShader);
 
