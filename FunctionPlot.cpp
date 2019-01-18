@@ -80,6 +80,10 @@ class MyApp: public Platform::Application {
     public:
         explicit MyApp(const Arguments& arguments);
 
+        Matrix4 transformation() const {
+            return _rotation * _model;
+        }
+
     private:
         void drawEvent() override;
         void mousePressEvent(MouseEvent& event) override;
@@ -91,7 +95,7 @@ class MyApp: public Platform::Application {
         Shaders::Phong _shader;
         Shaders::Flat3D _flatShader;
 
-        Matrix4 _transformation, _projection;
+        Matrix4 _rotation, _model, _projection;
         Vector2i _previousMousePosition;
         Color3 _color;
 };
@@ -105,16 +109,18 @@ MyApp::MyApp(const Arguments& arguments):
     // Multisampling is enabled by default.
     // GL::Renderer::enable(GL::Renderer::Feature::Multisampling);
 
-    const float gauss_c = 5.0f;
+    const float gauss_c = 0.05f;
     auto f = [=](float x, float y) {
-        return std::exp(-gauss_c * (x*x + y*y));
+        const float xc = (x - 20.0f), yc = (y - 20.0f);
+        return std::exp(-gauss_c * (xc*xc + yc*yc));
     };
     auto df = [=](float x, float y) {
-        const float e = std::exp(-gauss_c * (x*x + y*y));
-        return Vector2{-2*gauss_c*x*e, -2*gauss_c*y*e};
+        const float xc = (x - 20.0f), yc = (y - 20.0f);
+        const float e = std::exp(-gauss_c * (xc*xc + yc*yc));
+        return Vector2{-2*gauss_c*xc*e, -2*gauss_c*yc*e};
     };
     // To obtain a cartesianGrid use CartesianGrid<NoTransform, 4>
-    const CartesianGrid<CircleTransform, 4> grid{Vector2{-1.0f, -1.0f}, Vector2{1.0f, 1.0f}, 40, 40};
+    const CartesianGrid<NoTransform, 4> grid{Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 40, 40};
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
 
@@ -141,7 +147,9 @@ MyApp::MyApp(const Arguments& arguments):
         .addVertexBuffer(_vertexLinesBuffer, 0, Shaders::Flat3D::Position{})
         .setIndexBuffer(_indexLinesBuffer, 0, MeshIndexType::UnsignedInt, 0, functionLines.indices().size());
 
-    _transformation = Matrix4::rotationX(-60.0_degf);
+    _model = Matrix4::scaling({0.1f, 0.1f, 1.0f}) * Matrix4::translation({-20.0f, -20.0f, 0.0f});
+
+    _rotation = Matrix4::rotationX(-60.0_degf);
     _projection =
         Matrix4::perspectiveProjection(
             35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
@@ -157,13 +165,13 @@ void MyApp::drawEvent() {
         .setLightColor(Color3{1.0f})
         .setDiffuseColor(_color)
         .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.3f))
-        .setTransformationMatrix(_transformation)
-        .setNormalMatrix(_transformation.rotationScaling())
+        .setTransformationMatrix(transformation())
+        .setNormalMatrix(transformation().rotationScaling().inverted().transposed())
         .setProjectionMatrix(_projection);
     _mesh.draw(_shader);
 
     _flatShader.setColor(Color3{0.9f})
-        .setTransformationProjectionMatrix(_projection*_transformation);
+        .setTransformationProjectionMatrix(_projection*transformation());
     _lines.draw(_flatShader);
 
     swapBuffers();
@@ -187,9 +195,9 @@ void MyApp::mouseMoveEvent(MouseMoveEvent& event) {
         Vector2{event.position() - _previousMousePosition}/
         Vector2{GL::defaultFramebuffer.viewport().size()};
 
-    _transformation =
+    _rotation =
         Matrix4::rotationX(Rad{delta.y()})*
-        _transformation*
+        _rotation*
         Matrix4::rotationY(Rad{delta.x()});
 
     _previousMousePosition = event.position();
