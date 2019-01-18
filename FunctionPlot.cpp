@@ -76,6 +76,38 @@ Trade::MeshData3D mathFunctionLinesData(const Grid& grid, F evalF) {
         indices, {positions}, {}, {}, {}, nullptr};
 }
 
+static Trade::MeshData3D gridData(Vector2 llc, Vector2 urc, float stepX, float stepY, float z) {
+    std::vector<UnsignedInt> indices{};
+    std::vector<Vector3> positions;
+    const float x0 = llc.x(), y0 = llc.y();
+    const float x1 = urc.x(), y1 = urc.y();
+    positions.push_back(Vector3{x0, y0, z});
+    positions.push_back(Vector3{x0, y1, z});
+    positions.push_back(Vector3{x1, y1, z});
+    positions.push_back(Vector3{x1, y0, z});
+    for (UnsignedInt i : {0, 1, 1, 2, 2, 3, 3, 0}) {
+        indices.push_back(i);
+    }
+    int currentIndex = 4;
+    const float xEpsilon = stepX / 40, yEpsilon = stepY / 40;
+    const int i0 = ceil((x0 + xEpsilon) / stepX), i1 = floor((x1 - xEpsilon) / stepX);
+    for (int i = i0; i <= i1; i++) {
+        positions.push_back(Vector3{i * stepX, y0, z});
+        positions.push_back(Vector3{i * stepX, y1, z});
+        indices.push_back(currentIndex++);
+        indices.push_back(currentIndex++);
+    }
+    const int j0 = ceil((y0 + yEpsilon) / stepY), j1 = floor((y1 - yEpsilon) / stepY);
+    for (int j = j0; j <= j1; j++) {
+        positions.push_back(Vector3{x0, j * stepY, z});
+        positions.push_back(Vector3{x1, j * stepY, z});
+        indices.push_back(currentIndex++);
+        indices.push_back(currentIndex++);
+    }
+    return Trade::MeshData3D{MeshPrimitive::Lines,
+        indices, {positions}, {}, {}, {}, nullptr};
+}
+
 class MyApp: public Platform::Application {
     public:
         explicit MyApp(const Arguments& arguments);
@@ -91,7 +123,9 @@ class MyApp: public Platform::Application {
         void mouseMoveEvent(MouseMoveEvent& event) override;
 
         GL::Buffer _indexBuffer, _indexLinesBuffer, _vertexBuffer, _vertexLinesBuffer;
+        GL::Buffer _indexGridBuffer, _vertexGridBuffer;
         GL::Mesh _mesh, _lines;
+        GL::Mesh _baseGrid;
         Shaders::Phong _shader;
         Shaders::Flat3D _flatShader;
 
@@ -123,6 +157,7 @@ MyApp::MyApp(const Arguments& arguments):
     const CartesianGrid<NoTransform, 4> grid{Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 40, 40};
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
+    const Trade::MeshData3D bottomGrid = gridData(Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 3.0f, 3.0f, -0.5f);
 
     _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
 
@@ -136,6 +171,9 @@ MyApp::MyApp(const Arguments& arguments):
     _vertexLinesBuffer.setData(functionLines.positions(0));
     _indexLinesBuffer.setData(functionLines.indices());
 
+    _vertexGridBuffer.setData(bottomGrid.positions(0));
+    _indexGridBuffer.setData(bottomGrid.indices());
+
     _mesh.setPrimitive(functionMeshData.primitive())
         .setCount(functionMeshData.indices().size())
         .addVertexBuffer(_vertexBuffer, 0, Shaders::Phong::Position{},
@@ -146,6 +184,11 @@ MyApp::MyApp(const Arguments& arguments):
         .setCount(functionLines.indices().size())
         .addVertexBuffer(_vertexLinesBuffer, 0, Shaders::Flat3D::Position{})
         .setIndexBuffer(_indexLinesBuffer, 0, MeshIndexType::UnsignedInt, 0, functionLines.indices().size());
+
+    _baseGrid.setPrimitive(bottomGrid.primitive())
+        .setCount(bottomGrid.indices().size())
+        .addVertexBuffer(_vertexGridBuffer, 0, Shaders::Flat3D::Position{})
+        .setIndexBuffer(_indexGridBuffer, 0, MeshIndexType::UnsignedInt, 0, bottomGrid.indices().size());
 
     _model = Matrix4::scaling({0.1f, 0.1f, 1.0f}) * Matrix4::translation({-20.0f, -20.0f, 0.0f});
 
@@ -158,8 +201,7 @@ MyApp::MyApp(const Arguments& arguments):
 }
 
 void MyApp::drawEvent() {
-    GL::defaultFramebuffer.clear(
-        GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
+    GL::defaultFramebuffer.clear(GL::FramebufferClear::Depth).clearColor(Color4{1.0f});
 
     _shader.setLightPosition({7.0f, 5.0f, 2.5f})
         .setLightColor(Color3{1.0f})
@@ -173,6 +215,9 @@ void MyApp::drawEvent() {
     _flatShader.setColor(0xdcdcdc_rgbf)
         .setTransformationProjectionMatrix(_projection*transformation());
     _lines.draw(_flatShader);
+
+    _flatShader.setColor(Color4{0.7f});
+    _baseGrid.draw(_flatShader);
 
     swapBuffers();
 }
