@@ -10,6 +10,7 @@
 #include <Magnum/Shaders/Phong.h>
 #include <Magnum/Shaders/Flat.h>
 #include <Magnum/Trade/MeshData3D.h>
+#include <Magnum/Math/Algorithms/GaussJordan.h>
 #include "CartesianGrid.h"
 
 using namespace Magnum;
@@ -39,8 +40,8 @@ std::pair<std::vector<Vector3>, std::vector<Vector3>> mathFunctionPositionsNorma
         const float z = evalF(p.x(), p.y());
         positions.push_back(Vector3{p.x(), p.y(), z});
         const Vector2 df = evaldF(p.x(), p.y());
-        const float nf = std::sqrt(df.x() * df.x() + df.y() * df.y() + 1.0f);
-        normals.push_back(Vector3{-df.x() / nf, -df.y() / nf, 1 / nf});
+        // The normal vector does not need to be normalized.
+        normals.push_back(Vector3{-df.x(), -df.y(), 1});
     };
     grid.spanGridPoints(evalPointF);
     return std::make_pair(positions, normals);
@@ -114,6 +115,12 @@ class MyApp: public Platform::Application {
 
         Matrix4 transformation() const {
             return _rotation * _model;
+        }
+
+        Matrix3 normalsTransformation() const {
+            // If should give the inverse transpose of transformation().rotationScaling().
+            Matrix3 modelInvT = Math::Algorithms::gaussJordanInverted(_model.rotationScaling()).transposed();
+            return _rotation.rotationScaling() * modelInvT;
         }
 
     private:
@@ -208,7 +215,7 @@ void MyApp::drawEvent() {
         .setDiffuseColor(_color)
         .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.6f))
         .setTransformationMatrix(transformation())
-        .setNormalMatrix(transformation().rotationScaling().inverted().transposed())
+        .setNormalMatrix(normalsTransformation())
         .setProjectionMatrix(_projection);
     _mesh.draw(_shader);
 
