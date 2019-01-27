@@ -185,8 +185,8 @@ MyApp::MyApp(const Arguments& arguments):
     // To obtain a cartesianGrid use CartesianGrid<NoTransform, 4>
     const CartesianGrid<NoTransform, 4> grid{Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 40, 40};
 
-    auto limits = mathFunctionFindExtrema(grid, f);
-    fprintf(stderr, "limits: %f,%f\n", limits.first, limits.second);
+    const auto limits = mathFunctionFindExtrema(grid, f);
+    fprintf(stderr, "extrema: %f,%f\n", limits.first, limits.second);
 
     Units zUnits = Units{limits.first, limits.second};
     UnitsIterator uIt{zUnits};
@@ -197,9 +197,14 @@ MyApp::MyApp(const Arguments& arguments):
         fprintf(stderr, "label: %s\n", uLabel);
     }
 
+    float zMin = float(zUnits.mark_value(zUnits.begin()));
+    float zMax = float(zUnits.mark_value(zUnits.end()));
+
+    fprintf(stderr, "limits: %f,%f\n", zMin, zMax);
+
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
-    const Trade::MeshData3D bottomGrid = gridData(Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 3.0f, 3.0f, -0.5f);
+    const Trade::MeshData3D bottomGrid = gridData(Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 3.0f, 3.0f, zMin);
 
     _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
 
@@ -232,7 +237,7 @@ MyApp::MyApp(const Arguments& arguments):
         .addVertexBuffer(_vertexGridBuffer, 0, Shaders::Flat3D::Position{})
         .setIndexBuffer(_indexGridBuffer, 0, MeshIndexType::UnsignedInt, 0, bottomGrid.indices().size());
 
-    _model = Matrix4::scaling({0.1f, 0.1f, 1.0f}) * Matrix4::translation({-20.0f, -20.0f, 0.0f});
+    _model = Matrix4::scaling({0.1f, 0.1f, 1/(zMax - zMin)}) * Matrix4::translation({-20.0f, -20.0f, -zMin});
 
     _rotation = Matrix4::rotationX(-60.0_degf);
     _projection =
