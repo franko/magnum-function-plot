@@ -9,7 +9,7 @@ find_package(Magnum REQUIRED GL MeshTools Primitives Shaders Sdl2Application)
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
-add_executable(function-plot FunctionPlot.cpp)
+add_executable(function-plot printf_check.cpp Units.cpp FunctionPlot.cpp)
 target_include_directories(function-plot PRIVATE ${SDL2_INCLUDE_DIRS})
 target_link_libraries(function-plot PRIVATE
     Magnum::Application

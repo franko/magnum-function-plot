@@ -12,9 +12,30 @@
 #include <Magnum/Trade/MeshData3D.h>
 #include <Magnum/Math/Algorithms/GaussJordan.h>
 #include "CartesianGrid.h"
+#include "Units.h"
 
 using namespace Magnum;
 using namespace Magnum::Math::Literals;
+
+template <typename Grid, typename F>
+std::pair<float, float> mathFunctionFindExtrema(const Grid& grid, F f) {
+    float zMin = 1, zMax = -1;
+    grid.spanGridPoints([&](const Vector2& p) {
+        float z = f(p.x(), p.y());
+        if (zMin > zMax) {
+            zMin = z;
+            zMax = z;
+        } else {
+            if (z < zMin) {
+                zMin = z;
+            }
+            if (z > zMax) {
+                zMax = z;
+            }
+        }
+    });
+    return {zMin, zMax};
+}
 
 template <typename F, typename Grid>
 std::vector<Vector3> mathFunctionPositions(const Grid& grid, F evalF) {
@@ -160,8 +181,22 @@ MyApp::MyApp(const Arguments& arguments):
         const float e = std::exp(-gauss_c * (xc*xc + yc*yc));
         return Vector2{-2*gauss_c*xc*e, -2*gauss_c*yc*e};
     };
+
     // To obtain a cartesianGrid use CartesianGrid<NoTransform, 4>
     const CartesianGrid<NoTransform, 4> grid{Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 40, 40};
+
+    auto limits = mathFunctionFindExtrema(grid, f);
+    fprintf(stderr, "limits: %f,%f\n", limits.first, limits.second);
+
+    Units zUnits = Units{limits.first, limits.second};
+    UnitsIterator uIt{zUnits, Units::format_float, "%g"};
+
+    const char *uLabel;
+    double uVal;
+    while (uIt.next(uVal, uLabel)) {
+        fprintf(stderr, "label: %s\n", uLabel);
+    }
+
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
     const Trade::MeshData3D bottomGrid = gridData(Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 3.0f, 3.0f, -0.5f);
