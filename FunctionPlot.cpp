@@ -189,7 +189,7 @@ MyApp::MyApp(const Arguments& arguments):
     fprintf(stderr, "limits: %f,%f\n", limits.first, limits.second);
 
     Units zUnits = Units{limits.first, limits.second};
-    UnitsIterator uIt{zUnits, Units::format_float, "%g"};
+    UnitsIterator uIt{zUnits};
 
     const char *uLabel;
     double uVal;

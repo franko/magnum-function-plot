@@ -61,13 +61,12 @@ public:
     };
 
     void mark_label (char *label, unsigned size, int mark) const;
-    void fmt_label(char* label, unsigned size, format_e tag, const char* fmt, int mark) const;
+
     double mark_value (int mark) const {
         return _dmajor * mark;
     };
-    double mark_scale(double x);
 
-    static format_e parse_label_format(const char* fmt);
+    double mark_scale(double x);
 
 private:
     int _major;
@@ -79,9 +78,7 @@ private:
 
 class UnitsIterator : public LabelIterator {
 public:
-    UnitsIterator(const Units& u, Units::format_e tag, const char* fmt):
-        _units(u), _fmt_tag(tag), _fmt(fmt)
-    {
+    UnitsIterator(const Units& u): _units(u) {
         _index = u.begin();
     }
 
@@ -90,13 +87,9 @@ public:
         if (_index > _units.end())
             return false;
 
-        if (_fmt)
-            _units.fmt_label(_buffer, 32, _fmt_tag, _fmt, _index);
-        else
-            _units.mark_label(_buffer, 32, _index);
+        _units.mark_label(_buffer, 32, _index);
 
         val = _units.mark_value(_index);
-        text = _buffer;
         text = _buffer;
         _index ++;
         return true;
@@ -106,6 +99,4 @@ private:
     char _buffer[32];
     int _index;
     const Units& _units;
-    Units::format_e _fmt_tag;
-    const char* _fmt;
 };

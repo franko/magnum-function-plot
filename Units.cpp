@@ -23,7 +23,6 @@
 #include <math.h>
 
 #include "Units.h"
-#include "printf_check.h"
 
 void Units::set(double yinf, double ysup, double spacefact)
 {
@@ -84,49 +83,4 @@ double Units::mark_scale (double x)
 {
     double xinf = _inf * _dmajor, xsup = _sup * _dmajor;
     return (x - xinf) / (xsup - xinf);
-}
-
-void Units::fmt_label(char* label, unsigned size, format_e tag, const char* fmt, int mark) const
-{
-    double val = mark_value(mark);
-    switch (tag)
-    {
-    case format_int:
-    {
-        unsigned nchars = snprintf(label, size, fmt, int(val));
-        if (nchars >= size)
-            label[size-1] = 0;
-        break;
-    }
-    case format_float:
-    {
-        unsigned nchars = snprintf(label, size, fmt, val);
-        if (nchars >= size)
-            label[size-1] = 0;
-        break;
-    }
-    default:
-        memcpy(label, "*", 2);
-    }
-}
-
-Units::format_e Units::parse_label_format(const char* fmt)
-{
-    if (strlen(fmt) >= label_format_max_size)
-        return format_invalid;
-
-    arg_type_e arg_type;
-    const char* tail;
-    int n = check_printf_argument(fmt, tail, arg_type);
-    if (n != 1)
-        return format_invalid;
-    else
-    {
-        const char* tt;
-        arg_type_e aa;
-        if (check_printf_argument(tail, tt, aa) != 0)
-            return format_invalid;
-    }
-
-    return (arg_type == argument_int ? format_int : format_float);
 }
