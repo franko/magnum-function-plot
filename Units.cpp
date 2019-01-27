@@ -34,9 +34,9 @@ void Units::set(double yinf, double ysup, double spacefact)
 
     del = (ysup - yinf) / spacefact;
 
-    order = int(floor(log10(del)));
+    _order = int(floor(log10(del)));
 
-    double expf = pow(10, order);
+    double expf = pow(10, _order);
     double delr = del / expf;
 
     if (5 <= delr)
@@ -49,9 +49,9 @@ void Units::set(double yinf, double ysup, double spacefact)
     _inf = int(floor(yinf / (_major * expf) + 1e-5));
     _sup = int(ceil (ysup / (_major * expf) - 1e-5));
 
-    nb_decimals = (order < 0 ? -order : 0);
+    _decimals = (_order < 0 ? -_order : 0);
 
-    dmajor = _major * expf;
+    _dmajor = _major * expf;
 }
 
 void Units::mark_label (char *lab, unsigned size, int mark) const
@@ -63,26 +63,26 @@ void Units::mark_label (char *lab, unsigned size, int mark) const
     if (size < 16)
         return;
 
-    if (nb_decimals == 0)
+    if (_decimals == 0)
     {
-        snprintf (lab, size, "%.0f", mark * dmajor);
+        snprintf (lab, size, "%.0f", mark * _dmajor);
         lab[size-1] = '\0';
     }
     else
     {
-        int dec = (nb_decimals < 10 ? nb_decimals : 9);
-        int base = int(floor(asup * dmajor));
+        int dec = (_decimals < 10 ? _decimals : 9);
+        int base = int(floor(asup * _dmajor));
         int space = dec + (base > 0 ? int(log10(base)) : 0) + 1 + (minus ? 1 : 0) + 1;
         snprintf (fmt, 16, "%%%i.%if", space, dec);
         fmt[15] = '\0';
-        snprintf (lab, size, fmt, mark * dmajor);
+        snprintf (lab, size, fmt, mark * _dmajor);
         lab[size-1] = '\0';
     }
 }
 
 double Units::mark_scale (double x)
 {
-    double xinf = _inf * dmajor, xsup = _sup * dmajor;
+    double xinf = _inf * _dmajor, xsup = _sup * _dmajor;
     return (x - xinf) / (xsup - xinf);
 }
 

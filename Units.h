@@ -37,11 +37,11 @@ public:
 
     void clear() {
         _major = 1;
-        order = 0;
-        dmajor = 1;
+        _order = 0;
+        _dmajor = 1;
         _inf = 0;
         _sup = 1;
-        nb_decimals = 0;
+        _decimals = 0;
     }
 
     void set(double min, double max, double spacefact = 4.0);
@@ -57,13 +57,13 @@ public:
     {
         start = _inf;
         fin = _sup;
-        step = dmajor;
+        step = _dmajor;
     };
 
     void mark_label (char *label, unsigned size, int mark) const;
     void fmt_label(char* label, unsigned size, format_e tag, const char* fmt, int mark) const;
     double mark_value (int mark) const {
-        return dmajor * mark;
+        return _dmajor * mark;
     };
     double mark_scale(double x);
 
@@ -71,10 +71,10 @@ public:
 
 private:
     int _major;
-    int order;
-    double dmajor; // equal to (_major * 10^order)
+    int _order;
+    double _dmajor; // equal to (_major * 10^order)
     int _inf, _sup; // expressed in the base of (_major * 10^order)
-    int nb_decimals;
+    int _decimals; // Number of decimal units.
 };
 
 class UnitsIterator : public LabelIterator {
