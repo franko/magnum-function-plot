@@ -98,11 +98,12 @@ Trade::MeshData3D mathFunctionLinesData(const Grid& grid, F evalF) {
         indices, {positions}, {}, {}, {}, nullptr};
 }
 
-static Trade::MeshData3D gridData(Vector2 llc, Vector2 urc, float stepX, float stepY, float z) {
+template <typename Grid>
+Trade::MeshData3D unitsGridData(const Grid& grid, const Units& unitsX, const Units& unitsY, const float z) {
     std::vector<UnsignedInt> indices{};
     std::vector<Vector3> positions;
-    const float x0 = llc.x(), y0 = llc.y();
-    const float x1 = urc.x(), y1 = urc.y();
+    const float x0 = grid.llc().x(), y0 = grid.llc().y();
+    const float x1 = grid.urc().x(), y1 = grid.urc().y();
     positions.push_back(Vector3{x0, y0, z});
     positions.push_back(Vector3{x0, y1, z});
     positions.push_back(Vector3{x1, y1, z});
@@ -111,21 +112,30 @@ static Trade::MeshData3D gridData(Vector2 llc, Vector2 urc, float stepX, float s
         indices.push_back(i);
     }
     int currentIndex = 4;
-    const float xEpsilon = stepX / 40, yEpsilon = stepY / 40;
-    const int i0 = ceil((x0 + xEpsilon) / stepX), i1 = floor((x1 - xEpsilon) / stepX);
-    for (int i = i0; i <= i1; i++) {
-        positions.push_back(Vector3{i * stepX, y0, z});
-        positions.push_back(Vector3{i * stepX, y1, z});
+
+    UnitsIterator xIter{unitsX}, yIter{unitsY};
+    double xval;
+    const char *xlabel;
+    while (xIter.next(xval, xlabel)) {
+        const float xvalf = float(xval);
+        if (xvalf < x0 || xvalf > x1) continue;
+        positions.push_back(Vector3{xvalf, y0, z});
+        positions.push_back(Vector3{xvalf, y1, z});
         indices.push_back(currentIndex++);
         indices.push_back(currentIndex++);
     }
-    const int j0 = ceil((y0 + yEpsilon) / stepY), j1 = floor((y1 - yEpsilon) / stepY);
-    for (int j = j0; j <= j1; j++) {
-        positions.push_back(Vector3{x0, j * stepY, z});
-        positions.push_back(Vector3{x1, j * stepY, z});
+
+    double yval;
+    const char *ylabel;
+    while (yIter.next(yval, ylabel)) {
+        const float yvalf = float(yval);
+        if (yvalf < y0 || yvalf > y1) continue;
+        positions.push_back(Vector3{x0, yvalf, z});
+        positions.push_back(Vector3{x1, yvalf, z});
         indices.push_back(currentIndex++);
         indices.push_back(currentIndex++);
     }
+
     return Trade::MeshData3D{MeshPrimitive::Lines,
         indices, {positions}, {}, {}, {}, nullptr};
 }
@@ -139,7 +149,10 @@ class MyApp: public Platform::Application {
         }
 
         Matrix3 normalsTransformation() const {
-            // If should give the inverse transpose of transformation().rotationScaling().
+            // For the normals we need the inverse of the transpose of the matrix, excluding the
+            // translation term.
+            // As the rotation is an orthogonal matrix its inverse of transpose corresponds
+            // to the matrix itself.
             Matrix3 modelInvT = Math::Algorithms::gaussJordanInverted(_model.rotationScaling()).transposed();
             return _rotation.rotationScaling() * modelInvT;
         }
@@ -182,12 +195,16 @@ MyApp::MyApp(const Arguments& arguments):
         return Vector2{-2*gauss_c*xc*e, -2*gauss_c*yc*e};
     };
 
+    const float plotX1 = 10.0f, plotX2 = 30.0f;
+    const float plotY1 = -3.0f, plotY2 = 37.0f;
+
     // To obtain a cartesianGrid use CartesianGrid<NoTransform, 4>
-    const CartesianGrid<NoTransform, 4> grid{Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 40, 40};
+    const CartesianGrid<NoTransform, 4> grid{Vector2{plotX1, plotY1}, Vector2{plotX2, plotY2}, 40, 40};
 
     const auto limits = mathFunctionFindExtrema(grid, f);
     fprintf(stderr, "extrema: %f,%f\n", limits.first, limits.second);
 
+    Units xUnits{plotX1, plotX2}, yUnits{plotY1, plotY2};
     Units zUnits = Units{limits.first, limits.second};
     UnitsIterator uIt{zUnits};
 
@@ -204,7 +221,7 @@ MyApp::MyApp(const Arguments& arguments):
 
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
-    const Trade::MeshData3D bottomGrid = gridData(Vector2{10.0f, 10.0f}, Vector2{30.0f, 30.0f}, 3.0f, 3.0f, zMin);
+    const Trade::MeshData3D bottomGrid = unitsGridData(grid, xUnits, yUnits, zMin);
 
     _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
 
@@ -237,7 +254,7 @@ MyApp::MyApp(const Arguments& arguments):
         .addVertexBuffer(_vertexGridBuffer, 0, Shaders::Flat3D::Position{})
         .setIndexBuffer(_indexGridBuffer, 0, MeshIndexType::UnsignedInt, 0, bottomGrid.indices().size());
 
-    _model = Matrix4::scaling({0.1f, 0.1f, 1/(zMax - zMin)}) * Matrix4::translation({-20.0f, -20.0f, -zMin});
+    _model = Matrix4::scaling({2.0f / grid.xSpan(), 2.0f / grid.ySpan(), 1.0f / (zMax - zMin)}) * Matrix4::translation({-grid.xCenter(), -grid.yCenter(), -zMin});
 
     _rotation = Matrix4::rotationX(-60.0_degf);
     _projection =

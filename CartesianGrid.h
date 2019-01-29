@@ -74,6 +74,15 @@ public:
         }
     }
 
+    float xCenter() const { return (_urc.x() + _llc.x()) / 2; }
+    float yCenter() const { return (_urc.y() + _llc.y()) / 2; }
+
+    float xSpan() const { return _urc.x() - _llc.x(); }
+    float ySpan() const { return _urc.y() - _llc.y(); }
+
+    const Magnum::Vector2& llc() const { return _llc; }
+    const Magnum::Vector2& urc() const { return _urc; }
+
 private:
     int pointIndex(int i, int j) const {
         return j * (_nx + 1) + i;
