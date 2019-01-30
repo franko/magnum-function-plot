@@ -244,7 +244,7 @@ MyApp::MyApp(const Arguments& arguments):
         .addVertexBuffer(_vertexGridBuffer, 0, Shaders::Flat3D::Position{})
         .setIndexBuffer(_indexGridBuffer, 0, MeshIndexType::UnsignedInt, 0, gridData.indices().size());
 
-    _model = Matrix4::scaling({2.0f / grid.xSpan(), 2.0f / grid.ySpan(), 1.0f / (zMax - zMin)}) * Matrix4::translation({-grid.xCenter(), -grid.yCenter(), -zMin});
+    _model = Matrix4::scaling({2.0f / grid.xSpan(), 2.0f / grid.ySpan(), 0.5f / (zMax - zMin)}) * Matrix4::translation({-grid.xCenter(), -grid.yCenter(), -zMin});
 
     _rotation = Matrix4::rotationX(-60.0_degf);
     _projection =
