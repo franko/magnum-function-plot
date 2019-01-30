@@ -98,20 +98,19 @@ Trade::MeshData3D mathFunctionLinesData(const Grid& grid, F evalF) {
         indices, {positions}, {}, {}, {}, nullptr};
 }
 
-template <typename Grid>
-Trade::MeshData3D unitsGridData(const Grid& grid, const Units& unitsX, const Units& unitsY, const float z) {
-    std::vector<UnsignedInt> indices{};
-    std::vector<Vector3> positions;
-    const float x0 = grid.llc().x(), y0 = grid.llc().y();
-    const float x1 = grid.urc().x(), y1 = grid.urc().y();
-    positions.push_back(Vector3{x0, y0, z});
-    positions.push_back(Vector3{x0, y1, z});
-    positions.push_back(Vector3{x1, y1, z});
-    positions.push_back(Vector3{x1, y0, z});
+static void addPlaneGridData(UnsignedInt& currentIndex, std::vector<UnsignedInt>& indices,
+        std::vector<Vector3>& positions, const float x0, const float y0, const float x1, const float y1,
+        const Units& unitsX, const Units& unitsY,
+        const Vector3& xVector, const Vector3& yVector, const float z) {
+    const Vector3 zVector = Math::cross(xVector, yVector);
+    positions.push_back(x0 * xVector + y0 * yVector + z * zVector);
+    positions.push_back(x0 * xVector + y1 * yVector + z * zVector);
+    positions.push_back(x1 * xVector + y1 * yVector + z * zVector);
+    positions.push_back(x1 * xVector + y0 * yVector + z * zVector);
     for (UnsignedInt i : {0, 1, 1, 2, 2, 3, 3, 0}) {
-        indices.push_back(i);
+        indices.push_back(currentIndex + i);
     }
-    int currentIndex = 4;
+    currentIndex += 4;
 
     UnitsIterator xIter{unitsX}, yIter{unitsY};
     double xval;
@@ -119,8 +118,8 @@ Trade::MeshData3D unitsGridData(const Grid& grid, const Units& unitsX, const Uni
     while (xIter.next(xval, xlabel)) {
         const float xvalf = float(xval);
         if (xvalf < x0 || xvalf > x1) continue;
-        positions.push_back(Vector3{xvalf, y0, z});
-        positions.push_back(Vector3{xvalf, y1, z});
+        positions.push_back(xvalf * xVector + y0 * yVector + z * zVector);
+        positions.push_back(xvalf * xVector + y1 * yVector + z * zVector);
         indices.push_back(currentIndex++);
         indices.push_back(currentIndex++);
     }
@@ -130,14 +129,11 @@ Trade::MeshData3D unitsGridData(const Grid& grid, const Units& unitsX, const Uni
     while (yIter.next(yval, ylabel)) {
         const float yvalf = float(yval);
         if (yvalf < y0 || yvalf > y1) continue;
-        positions.push_back(Vector3{x0, yvalf, z});
-        positions.push_back(Vector3{x1, yvalf, z});
+        positions.push_back(x0 * xVector + yvalf * yVector + z * zVector);
+        positions.push_back(x1 * xVector + yvalf * yVector + z * zVector);
         indices.push_back(currentIndex++);
         indices.push_back(currentIndex++);
     }
-
-    return Trade::MeshData3D{MeshPrimitive::Lines,
-        indices, {positions}, {}, {}, {}, nullptr};
 }
 
 class MyApp: public Platform::Application {
@@ -202,26 +198,23 @@ MyApp::MyApp(const Arguments& arguments):
     const CartesianGrid<NoTransform, 4> grid{Vector2{plotX1, plotY1}, Vector2{plotX2, plotY2}, 40, 40};
 
     const auto limits = mathFunctionFindExtrema(grid, f);
-    fprintf(stderr, "extrema: %f,%f\n", limits.first, limits.second);
 
     Units xUnits{plotX1, plotX2}, yUnits{plotY1, plotY2};
     Units zUnits = Units{limits.first, limits.second};
-    UnitsIterator uIt{zUnits};
 
-    const char *uLabel;
-    double uVal;
-    while (uIt.next(uVal, uLabel)) {
-        fprintf(stderr, "label: %s\n", uLabel);
-    }
-
-    float zMin = float(zUnits.mark_value(zUnits.begin()));
-    float zMax = float(zUnits.mark_value(zUnits.end()));
-
-    fprintf(stderr, "limits: %f,%f\n", zMin, zMax);
+    const float zMin = float(zUnits.mark_value(zUnits.begin()));
+    const float zMax = float(zUnits.mark_value(zUnits.end()));
 
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
-    const Trade::MeshData3D bottomGrid = unitsGridData(grid, xUnits, yUnits, zMin);
+
+    std::vector<UnsignedInt> gridIndices;
+    std::vector<Vector3> gridPositions;
+    UnsignedInt gridPositionsIndex = 0;
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotX1, plotY1, plotX2, plotY2, xUnits, yUnits, Vector3::xAxis(), Vector3::yAxis(), zMin);
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, zMin, plotX1, zMax, plotX2, zUnits, xUnits, Vector3::zAxis(), Vector3::xAxis(), plotY2);
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotY1, zMin, plotY2, zMax, yUnits, zUnits, Vector3::yAxis(), Vector3::zAxis(), plotX1);
+    const auto gridData = Trade::MeshData3D{MeshPrimitive::Lines, gridIndices, {gridPositions}, {}, {}, {}, nullptr};
 
     _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
 
@@ -235,8 +228,8 @@ MyApp::MyApp(const Arguments& arguments):
     _vertexLinesBuffer.setData(functionLines.positions(0));
     _indexLinesBuffer.setData(functionLines.indices());
 
-    _vertexGridBuffer.setData(bottomGrid.positions(0));
-    _indexGridBuffer.setData(bottomGrid.indices());
+    _vertexGridBuffer.setData(gridData.positions(0));
+    _indexGridBuffer.setData(gridData.indices());
 
     _mesh.setPrimitive(functionMeshData.primitive())
         .setCount(functionMeshData.indices().size())
@@ -249,10 +242,10 @@ MyApp::MyApp(const Arguments& arguments):
         .addVertexBuffer(_vertexLinesBuffer, 0, Shaders::Flat3D::Position{})
         .setIndexBuffer(_indexLinesBuffer, 0, MeshIndexType::UnsignedInt, 0, functionLines.indices().size());
 
-    _baseGrid.setPrimitive(bottomGrid.primitive())
-        .setCount(bottomGrid.indices().size())
+    _baseGrid.setPrimitive(gridData.primitive())
+        .setCount(gridData.indices().size())
         .addVertexBuffer(_vertexGridBuffer, 0, Shaders::Flat3D::Position{})
-        .setIndexBuffer(_indexGridBuffer, 0, MeshIndexType::UnsignedInt, 0, bottomGrid.indices().size());
+        .setIndexBuffer(_indexGridBuffer, 0, MeshIndexType::UnsignedInt, 0, gridData.indices().size());
 
     _model = Matrix4::scaling({2.0f / grid.xSpan(), 2.0f / grid.ySpan(), 1.0f / (zMax - zMin)}) * Matrix4::translation({-grid.xCenter(), -grid.yCenter(), -zMin});
 
