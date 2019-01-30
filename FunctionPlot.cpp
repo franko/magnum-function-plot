@@ -251,7 +251,7 @@ MyApp::MyApp(const Arguments& arguments):
         Matrix4::perspectiveProjection(
             35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
         Matrix4::translation(Vector3::zAxis(-8.0f));
-    _color = 0x2f83cc_rgbf;
+    _color = 0xff9900_rgbf;
 }
 
 void MyApp::drawEvent() {
@@ -260,7 +260,7 @@ void MyApp::drawEvent() {
     _shader.setLightPosition({7.0f, 5.0f, 2.5f})
         .setLightColor(Color3{1.0f})
         .setDiffuseColor(_color)
-        .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.6f))
+        .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.4f))
         .setTransformationMatrix(transformation())
         .setNormalMatrix(normalsTransformation())
         .setProjectionMatrix(_projection);
