@@ -180,22 +180,19 @@ MyApp::MyApp(const Arguments& arguments):
     // Multisampling is enabled by default.
     // GL::Renderer::enable(GL::Renderer::Feature::Multisampling);
 
-    const float gauss_c = 0.05f;
-    auto f = [=](float x, float y) {
-        const float xc = (x - 20.0f), yc = (y - 20.0f);
-        return std::exp(-gauss_c * (xc*xc + yc*yc));
+    auto f = [](float x, float y) {
+        return std::sin(x + y*y);
     };
-    auto df = [=](float x, float y) {
-        const float xc = (x - 20.0f), yc = (y - 20.0f);
-        const float e = std::exp(-gauss_c * (xc*xc + yc*yc));
-        return Vector2{-2*gauss_c*xc*e, -2*gauss_c*yc*e};
+    auto df = [](float x, float y) {
+        const float c = std::cos(x + y*y);
+        return Vector2{c, 2*y*c};
     };
 
-    const float plotX1 = 10.0f, plotX2 = 30.0f;
-    const float plotY1 = -3.0f, plotY2 = 37.0f;
+    const float plotX1 = -3.0f, plotX2 = 3.0f;
+    const float plotY1 = -2.0f, plotY2 = 2.0f;
 
     // To obtain a cartesianGrid use CartesianGrid<NoTransform, 4>
-    const CartesianGrid<NoTransform, 4> grid{Vector2{plotX1, plotY1}, Vector2{plotX2, plotY2}, 40, 40};
+    const CartesianGrid<NoTransform, 8> grid{Vector2{plotX1, plotY1}, Vector2{plotX2, plotY2}, 80, 80};
 
     const auto limits = mathFunctionFindExtrema(grid, f);
 
