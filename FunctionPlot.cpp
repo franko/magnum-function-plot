@@ -266,7 +266,7 @@ void MyApp::drawEvent() {
         .setProjectionMatrix(_projection);
     _mesh.draw(_shader);
 
-    _flatShader.setColor(0xdcdcdc_rgbf)
+    _flatShader.setColor(0x555555_rgbf)
         .setTransformationProjectionMatrix(_projection*transformation());
     _lines.draw(_flatShader);
 
