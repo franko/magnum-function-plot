@@ -12,6 +12,7 @@
 #include <Magnum/Trade/MeshData3D.h>
 #include <Magnum/Math/Algorithms/GaussJordan.h>
 #include "CartesianGrid.h"
+#include "PlotConfig.h"
 #include "Units.h"
 
 using namespace Magnum;
@@ -168,7 +169,7 @@ class MyApp: public Platform::Application {
 
         Matrix4 _rotation, _model, _projection;
         Vector2i _previousMousePosition;
-        Color3 _color;
+        PlotConfig _plotConfig;
 };
 
 MyApp::MyApp(const Arguments& arguments):
@@ -251,27 +252,40 @@ MyApp::MyApp(const Arguments& arguments):
         Matrix4::perspectiveProjection(
             35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
         Matrix4::translation(Vector3::zAxis(-8.0f));
-    _color = 0xff9900_rgbf;
+
+    _plotConfig.overwriteGrids = true;
 }
 
 void MyApp::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Depth).clearColor(Color4{1.0f});
 
-    _shader.setLightPosition({7.0f, 5.0f, 2.5f})
-        .setLightColor(Color3{1.0f})
-        .setDiffuseColor(_color)
-        .setAmbientColor(Color3::fromHsv(_color.hue(), 1.0f, 0.4f))
-        .setTransformationMatrix(transformation())
-        .setNormalMatrix(normalsTransformation())
-        .setProjectionMatrix(_projection);
-    _mesh.draw(_shader);
+    _flatShader.setTransformationProjectionMatrix(_projection*transformation());
 
-    _flatShader.setColor(0x555555_rgbf)
-        .setTransformationProjectionMatrix(_projection*transformation());
-    _lines.draw(_flatShader);
+    if (_plotConfig.drawGrids) {
+        _flatShader.setColor(Color4{0.7f});
+        _baseGrid.draw(_flatShader);
+    }
 
-    _flatShader.setColor(Color4{0.7f});
-    _baseGrid.draw(_flatShader);
+    if (_plotConfig.overwriteGrids) {
+        GL::defaultFramebuffer.clear(GL::FramebufferClear::Depth);
+    }
+
+    if (_plotConfig.drawSurface) {
+        Color3 color = _plotConfig.surfaceColor;
+        _shader.setLightPosition({7.0f, 5.0f, 2.5f})
+            .setLightColor(Color3{1.0f})
+            .setDiffuseColor(color)
+            .setAmbientColor(Color3::fromHsv(color.hue(), 1.0f, 0.4f))
+            .setTransformationMatrix(transformation())
+            .setNormalMatrix(normalsTransformation())
+            .setProjectionMatrix(_projection);
+        _mesh.draw(_shader);
+    }
+
+    if (_plotConfig.drawSurfaceLines) {
+        _flatShader.setColor(0x555555_rgbf);
+        _lines.draw(_flatShader);
+    }
 
     swapBuffers();
 }
