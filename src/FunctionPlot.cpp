@@ -251,7 +251,7 @@ MyApp::MyApp(const Arguments& arguments):
     _projection =
         Matrix4::perspectiveProjection(
             35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
-        Matrix4::translation(Vector3::zAxis(-8.0f));
+        Matrix4::translation(Vector3::zAxis(- _plotConfig.cameraDistance));
 
     _plotConfig.overwriteGrids = true;
 }
