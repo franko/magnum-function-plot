@@ -1,5 +1,7 @@
 #include <cmath>
 #include <utility>
+#include <Corrade/Utility/Format.h>
+#include <Corrade/PluginManager/Manager.h>
 #include <Magnum/GL/Buffer.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
 #include <Magnum/GL/Mesh.h>
@@ -11,6 +13,10 @@
 #include <Magnum/Shaders/Flat.h>
 #include <Magnum/Trade/MeshData3D.h>
 #include <Magnum/Math/Algorithms/GaussJordan.h>
+#include <Magnum/Shaders/DistanceFieldVector.h>
+#include <Magnum/Text/AbstractFont.h>
+#include <Magnum/Text/DistanceFieldGlyphCache.h>
+#include <Magnum/Text/Renderer.h>
 #include "CartesianGrid.h"
 #include "PlotConfig.h"
 #include "Units.h"
@@ -167,14 +173,37 @@ class MyApp: public Platform::Application {
         Shaders::Phong _shader;
         Shaders::Flat3D _flatShader;
 
+        PluginManager::Manager<Text::AbstractFont> _manager;
+        std::unique_ptr<Text::AbstractFont> _font;
+        Text::DistanceFieldGlyphCache _cache;
+
+        std::unique_ptr<Text::Renderer2D> _text;
+        Shaders::DistanceFieldVector2D _textShader;
+
         Matrix4 _rotation, _model, _projection;
         Vector2i _previousMousePosition;
         PlotConfig _plotConfig;
 };
 
 MyApp::MyApp(const Arguments& arguments):
-    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}
+    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}, _cache(Vector2i(2048), Vector2i(512), 22)
 {
+    /* Load FreeTypeFont plugin */
+    _font = _manager.loadAndInstantiate("FreeTypeFont");
+    if(!_font) std::exit(1);
+
+    /* Open the font and fill glyph cache */
+    Utility::Resource rs("fonts");
+    if(!_font->openSingleData(rs.getRaw("DejaVuSans.ttf"), 110.0f)) {
+        Error() << "Cannot open font file";
+        std::exit(1);
+    }
+
+    _font->fillGlyphCache(_cache, "xyzXYZ0123456789.eE+- ");
+
+    _text.reset(new Text::Renderer2D(*_font, _cache, 0.035f, Text::Alignment::TopRight));
+    _text->reserve(40, GL::BufferUsage::DynamicDraw, GL::BufferUsage::StaticDraw);
+
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::PolygonOffsetFill);
     GL::Renderer::setPolygonOffset(1.0f, 1.0f);
