@@ -174,7 +174,7 @@ class MyApp: public Platform::Application {
         Shaders::Flat3D _flatShader;
 
         PluginManager::Manager<Text::AbstractFont> _manager;
-        std::unique_ptr<Text::AbstractFont> _font;
+        Containers::Pointer<Text::AbstractFont> _font;
         Text::DistanceFieldGlyphCache _cache;
 
         std::unique_ptr<Text::Renderer2D> _text;
