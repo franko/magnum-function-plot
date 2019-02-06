@@ -143,6 +143,28 @@ static void addPlaneGridData(UnsignedInt& currentIndex, std::vector<UnsignedInt>
     }
 }
 
+struct TextLabel {
+    Containers::Pointer<Text::Renderer2D> textRenderer;
+    Vector3 position;
+};
+
+template <typename F>
+std::vector<TextLabel> axisLabels(const Units& units, const Vector3& axisVector, const Vector3& origin, const float x0, const float x1, F newTextRenderer) {
+    UnitsIterator iter{units};
+    double xval;
+    const char *xlabel;
+    std::vector<TextLabel> labels;
+    while (iter.next(xval, xlabel)) {
+        const float xvalf = float(xval);
+        if (xvalf < x0 || xvalf > x1) continue;
+        TextLabel label{Containers::Pointer<Text::Renderer2D>{newTextRenderer()}, origin + xvalf * axisVector};
+        label.textRenderer->reserve(12, GL::BufferUsage::DynamicDraw, GL::BufferUsage::StaticDraw);
+        label.textRenderer->render(xlabel);
+        labels.push_back(std::move(label));
+    }
+    return labels;
+}
+
 class MyApp: public Platform::Application {
     public:
         explicit MyApp(const Arguments& arguments);
@@ -177,8 +199,9 @@ class MyApp: public Platform::Application {
         Containers::Pointer<Text::AbstractFont> _font;
         Text::DistanceFieldGlyphCache _cache;
 
-        std::unique_ptr<Text::Renderer2D> _text;
         Shaders::DistanceFieldVector2D _textShader;
+        Matrix3 _textViewportScaling;
+        std::vector<TextLabel> _zAxisLabels;
 
         Matrix4 _rotation, _model, _projection;
         Vector2i _previousMousePosition;
@@ -201,14 +224,14 @@ MyApp::MyApp(const Arguments& arguments):
 
     _font->fillGlyphCache(_cache, "xyzXYZ0123456789.eE+- ");
 
-    _text.reset(new Text::Renderer2D(*_font, _cache, 0.035f, Text::Alignment::TopRight));
-    _text->reserve(40, GL::BufferUsage::DynamicDraw, GL::BufferUsage::StaticDraw);
-
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::PolygonOffsetFill);
     GL::Renderer::setPolygonOffset(1.0f, 1.0f);
     // Multisampling is enabled by default.
     // GL::Renderer::enable(GL::Renderer::Feature::Multisampling);
+    GL::Renderer::enable(GL::Renderer::Feature::Blending);
+    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha, GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add, GL::Renderer::BlendEquation::Add);
 
     auto f = [](float x, float y) {
         return std::sin(x + y*y);
@@ -231,6 +254,8 @@ MyApp::MyApp(const Arguments& arguments):
 
     const float zMin = float(zUnits.mark_value(zUnits.begin()));
     const float zMax = float(zUnits.mark_value(zUnits.end()));
+
+    _zAxisLabels = axisLabels(zUnits, Vector3::zAxis(), Vector3{plotX1, plotY1, 0.0f}, zMin, zMax, [&]() { return new Text::Renderer2D(*_font, _cache, 0.02f, Text::Alignment::MiddleCenter); });
 
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
@@ -282,6 +307,8 @@ MyApp::MyApp(const Arguments& arguments):
             35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
         Matrix4::translation(Vector3::zAxis(- _plotConfig.cameraDistance));
 
+    _textViewportScaling = Matrix3::scaling(Vector2::yScale(Vector2(GL::defaultFramebuffer.viewport().size()).aspectRatio()));
+
     _plotConfig.overwriteGrids = true;
 }
 
@@ -314,6 +341,18 @@ void MyApp::drawEvent() {
     if (_plotConfig.drawSurfaceLines) {
         _flatShader.setColor(0x555555_rgbf);
         _lines.draw(_flatShader);
+    }
+
+    _textShader.bindVectorTexture(_cache.texture());
+    _textShader.setColor(Color3{0.3f})
+        .setSmoothness(0.075f);
+
+    for (auto& label : _zAxisLabels) {
+        const Matrix4 m = _projection * transformation();
+        Vector3 textCoord = m.transformPoint(label.position);
+        Vector2 projTextCoord{textCoord.x(), textCoord.y()};
+        _textShader.setTransformationProjectionMatrix(Matrix3::translation(projTextCoord) * _textViewportScaling);
+        label.textRenderer->mesh().draw(_textShader);
     }
 
     swapBuffers();
