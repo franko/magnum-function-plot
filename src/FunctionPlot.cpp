@@ -255,7 +255,7 @@ MyApp::MyApp(const Arguments& arguments):
     const float zMin = float(zUnits.mark_value(zUnits.begin()));
     const float zMax = float(zUnits.mark_value(zUnits.end()));
 
-    _zAxisLabels = axisLabels(zUnits, Vector3::zAxis(), Vector3{plotX1, plotY1, 0.0f}, zMin, zMax, [&]() { return new Text::Renderer2D(*_font, _cache, 0.02f, Text::Alignment::MiddleCenter); });
+    _zAxisLabels = axisLabels(zUnits, Vector3::zAxis(), Vector3{plotX1, plotY1, 0.0f}, zMin, zMax, [&]() { return new Text::Renderer2D(*_font, _cache, 0.02f, Text::Alignment::MiddleRight); });
 
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
@@ -348,8 +348,9 @@ void MyApp::drawEvent() {
         .setSmoothness(0.075f);
 
     for (auto& label : _zAxisLabels) {
-        const Matrix4 m = _projection * transformation();
-        Vector3 textCoord = m.transformPoint(label.position);
+        Vector3 posNorm = _model.transformPoint(label.position);
+        posNorm = posNorm - 2 * _plotConfig.axisTickSize * Vector3::yAxis();
+        Vector3 textCoord = (_projection * _rotation).transformPoint(posNorm);
         Vector2 projTextCoord{textCoord.x(), textCoord.y()};
         _textShader.setTransformationProjectionMatrix(Matrix3::translation(projTextCoord) * _textViewportScaling);
         label.textRenderer->mesh().draw(_textShader);
