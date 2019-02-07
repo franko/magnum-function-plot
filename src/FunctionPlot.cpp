@@ -108,7 +108,7 @@ Trade::MeshData3D mathFunctionLinesData(const Grid& grid, F evalF) {
 static void addPlaneGridData(UnsignedInt& currentIndex, std::vector<UnsignedInt>& indices,
         std::vector<Vector3>& positions, const float x0, const float y0, const float x1, const float y1,
         const Units& unitsX, const Units& unitsY,
-        const Vector3& xVector, const Vector3& yVector, const float z) {
+        const Vector3& xVector, const Vector3& yVector, const float z, const float tickRelativeSize) {
     const Vector3 zVector = Math::cross(xVector, yVector);
     positions.push_back(x0 * xVector + y0 * yVector + z * zVector);
     positions.push_back(x0 * xVector + y1 * yVector + z * zVector);
@@ -119,14 +119,16 @@ static void addPlaneGridData(UnsignedInt& currentIndex, std::vector<UnsignedInt>
     }
     currentIndex += 4;
 
+    const float y0p = y0 - tickRelativeSize * (y1 - y0);
+
     UnitsIterator xIter{unitsX}, yIter{unitsY};
     double xval;
     const char *xlabel;
     while (xIter.next(xval, xlabel)) {
         const float xvalf = float(xval);
         if (xvalf < x0 || xvalf > x1) continue;
-        positions.push_back(xvalf * xVector + y0 * yVector + z * zVector);
-        positions.push_back(xvalf * xVector + y1 * yVector + z * zVector);
+        positions.push_back(xvalf * xVector + y0p * yVector + z * zVector);
+        positions.push_back(xvalf * xVector + y1  * yVector + z * zVector);
         indices.push_back(currentIndex++);
         indices.push_back(currentIndex++);
     }
@@ -263,9 +265,9 @@ MyApp::MyApp(const Arguments& arguments):
     std::vector<UnsignedInt> gridIndices;
     std::vector<Vector3> gridPositions;
     UnsignedInt gridPositionsIndex = 0;
-    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotX1, plotY1, plotX2, plotY2, xUnits, yUnits, Vector3::xAxis(), Vector3::yAxis(), zMin);
-    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, zMin, plotX1, zMax, plotX2, zUnits, xUnits, Vector3::zAxis(), Vector3::xAxis(), plotY2);
-    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotY1, zMin, plotY2, zMax, yUnits, zUnits, Vector3::yAxis(), Vector3::zAxis(), plotX1);
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotX1, plotY1, plotX2, plotY2, xUnits, yUnits, Vector3::xAxis(), Vector3::yAxis(), zMin, _plotConfig.axisTickSize);
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, zMin, plotX1, zMax, plotX2, zUnits, xUnits, Vector3::zAxis(), Vector3::xAxis(), plotY2, _plotConfig.axisTickSize);
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotY1, zMin, plotY2, zMax, yUnits, zUnits, Vector3::yAxis(), Vector3::zAxis(), plotX1, _plotConfig.axisTickSize);
     const auto gridData = Trade::MeshData3D{MeshPrimitive::Lines, gridIndices, {gridPositions}, {}, {}, {}, nullptr};
 
     _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
