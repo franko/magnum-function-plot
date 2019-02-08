@@ -225,7 +225,7 @@ class MyApp: public Platform::Application {
 };
 
 MyApp::MyApp(const Arguments& arguments):
-    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}, _cache(Vector2i(2048), Vector2i(512), 22)
+    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}, _cache(Vector2i(2048), Vector2i(512), 12)
 {
     /* Load FreeTypeFont plugin */
     _font = _manager.loadAndInstantiate("FreeTypeFont");
@@ -347,8 +347,7 @@ void MyApp::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Depth).clearColor(Color4{1.0f});
 
     _textShader.bindVectorTexture(_cache.texture());
-    _textShader.setColor(Color3{0.3f})
-        .setSmoothness(0.075f);
+    _textShader.setColor(Color3{0.3f}).setSmoothness(0.2f);
 
     renderAxisLabels(_xAxisLabels);
     renderAxisLabels(_yAxisLabels);
