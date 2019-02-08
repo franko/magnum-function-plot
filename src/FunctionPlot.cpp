@@ -24,6 +24,19 @@
 using namespace Magnum;
 using namespace Magnum::Math::Literals;
 
+enum {
+    AXIS_TICKS_NONE  = 0,
+    AXIS_TICKS_X_INF = 1 << 0,
+    AXIS_TICKS_X_SUP = 1 << 1,
+    AXIS_TICKS_Y_INF = 1 << 2,
+    AXIS_TICKS_Y_SUP = 1 << 3,
+};
+
+struct TextLabel {
+    Containers::Pointer<Text::Renderer2D> textRenderer;
+    Vector3 position;
+};
+
 template <typename Grid, typename F>
 std::pair<float, float> mathFunctionFindExtrema(const Grid& grid, F f) {
     float zMin = 1, zMax = -1;
@@ -108,7 +121,7 @@ Trade::MeshData3D mathFunctionLinesData(const Grid& grid, F evalF) {
 static void addPlaneGridData(UnsignedInt& currentIndex, std::vector<UnsignedInt>& indices,
         std::vector<Vector3>& positions, const float x0, const float y0, const float x1, const float y1,
         const Units& unitsX, const Units& unitsY,
-        const Vector3& xVector, const Vector3& yVector, const float z, const float tickRelativeSize) {
+        const Vector3& xVector, const Vector3& yVector, const float z, UnsignedInt drawTicks, const float tickRelativeSize) {
     const Vector3 zVector = Math::cross(xVector, yVector);
     positions.push_back(x0 * xVector + y0 * yVector + z * zVector);
     positions.push_back(x0 * xVector + y1 * yVector + z * zVector);
@@ -119,7 +132,8 @@ static void addPlaneGridData(UnsignedInt& currentIndex, std::vector<UnsignedInt>
     }
     currentIndex += 4;
 
-    const float y0p = y0 - tickRelativeSize * (y1 - y0);
+    const float y0p = y0 - (drawTicks & AXIS_TICKS_X_INF ? tickRelativeSize * (y1 - y0) : 0.0f);
+    const float y1p = y1 + (drawTicks & AXIS_TICKS_X_SUP ? tickRelativeSize * (y1 - y0) : 0.0f);
 
     UnitsIterator xIter{unitsX}, yIter{unitsY};
     double xval;
@@ -128,27 +142,25 @@ static void addPlaneGridData(UnsignedInt& currentIndex, std::vector<UnsignedInt>
         const float xvalf = float(xval);
         if (xvalf < x0 || xvalf > x1) continue;
         positions.push_back(xvalf * xVector + y0p * yVector + z * zVector);
-        positions.push_back(xvalf * xVector + y1  * yVector + z * zVector);
+        positions.push_back(xvalf * xVector + y1p * yVector + z * zVector);
         indices.push_back(currentIndex++);
         indices.push_back(currentIndex++);
     }
+
+    const float x0p = x0 - (drawTicks & AXIS_TICKS_Y_INF ? tickRelativeSize * (x1 - x0) : 0.0f);
+    const float x1p = x1 + (drawTicks & AXIS_TICKS_Y_SUP ? tickRelativeSize * (x1 - x0) : 0.0f);
 
     double yval;
     const char *ylabel;
     while (yIter.next(yval, ylabel)) {
         const float yvalf = float(yval);
         if (yvalf < y0 || yvalf > y1) continue;
-        positions.push_back(x0 * xVector + yvalf * yVector + z * zVector);
-        positions.push_back(x1 * xVector + yvalf * yVector + z * zVector);
+        positions.push_back(x0p * xVector + yvalf * yVector + z * zVector);
+        positions.push_back(x1p * xVector + yvalf * yVector + z * zVector);
         indices.push_back(currentIndex++);
         indices.push_back(currentIndex++);
     }
 }
-
-struct TextLabel {
-    Containers::Pointer<Text::Renderer2D> textRenderer;
-    Vector3 position;
-};
 
 template <typename F>
 std::vector<TextLabel> axisLabels(const Units& units, const Vector3& axisVector, const Vector3& origin, const float x0, const float x1, F newTextRenderer) {
@@ -171,6 +183,7 @@ class MyApp: public Platform::Application {
     public:
         explicit MyApp(const Arguments& arguments);
 
+    private:
         Matrix4 transformation() const {
             return _rotation * _model;
         }
@@ -184,7 +197,8 @@ class MyApp: public Platform::Application {
             return _rotation.rotationScaling() * modelInvT;
         }
 
-    private:
+        void renderAxisLabels(std::vector<TextLabel>& axisLabels);
+
         void drawEvent() override;
         void mousePressEvent(MouseEvent& event) override;
         void mouseReleaseEvent(MouseEvent& event) override;
@@ -203,7 +217,7 @@ class MyApp: public Platform::Application {
 
         Shaders::DistanceFieldVector2D _textShader;
         Matrix3 _textViewportScaling;
-        std::vector<TextLabel> _zAxisLabels;
+        std::vector<TextLabel> _xAxisLabels, _yAxisLabels, _zAxisLabels;
 
         Matrix4 _rotation, _model, _projection;
         Vector2i _previousMousePosition;
@@ -257,7 +271,10 @@ MyApp::MyApp(const Arguments& arguments):
     const float zMin = float(zUnits.mark_value(zUnits.begin()));
     const float zMax = float(zUnits.mark_value(zUnits.end()));
 
-    _zAxisLabels = axisLabels(zUnits, Vector3::zAxis(), Vector3{plotX1, plotY1, 0.0f}, zMin, zMax, [&]() { return new Text::Renderer2D(*_font, _cache, 0.02f, Text::Alignment::MiddleRight); });
+    auto newTextRenderer = [&]() { return new Text::Renderer2D(*_font, _cache, 0.02f, Text::Alignment::MiddleRight); };
+    _xAxisLabels = axisLabels(xUnits, Vector3::xAxis(), Vector3{0.0f, plotY1, zMin}, plotX1, plotX2, newTextRenderer);
+    _yAxisLabels = axisLabels(yUnits, Vector3::yAxis(), Vector3{plotX2, 0.0f, zMin}, plotY1, plotY2, newTextRenderer);
+    _zAxisLabels = axisLabels(zUnits, Vector3::zAxis(), Vector3{plotX1, plotY1, 0.0f}, zMin, zMax, newTextRenderer);
 
     const Trade::MeshData3D functionMeshData = mathFunctionMeshData(grid, f, df);
     const Trade::MeshData3D functionLines = mathFunctionLinesData(grid, f);
@@ -265,9 +282,10 @@ MyApp::MyApp(const Arguments& arguments):
     std::vector<UnsignedInt> gridIndices;
     std::vector<Vector3> gridPositions;
     UnsignedInt gridPositionsIndex = 0;
-    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotX1, plotY1, plotX2, plotY2, xUnits, yUnits, Vector3::xAxis(), Vector3::yAxis(), zMin, _plotConfig.axisTickSize);
-    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, zMin, plotX1, zMax, plotX2, zUnits, xUnits, Vector3::zAxis(), Vector3::xAxis(), plotY2, _plotConfig.axisTickSize);
-    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotY1, zMin, plotY2, zMax, yUnits, zUnits, Vector3::yAxis(), Vector3::zAxis(), plotX1, _plotConfig.axisTickSize);
+    const float tickSize = _plotConfig.axisTickSize;
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotX1, plotY1, plotX2, plotY2, xUnits, yUnits, Vector3::xAxis(), Vector3::yAxis(), zMin, AXIS_TICKS_X_INF|AXIS_TICKS_Y_SUP, tickSize);
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, zMin, plotX1, zMax, plotX2, zUnits, xUnits, Vector3::zAxis(), Vector3::xAxis(), plotY2, AXIS_TICKS_NONE, tickSize);
+    addPlaneGridData(gridPositionsIndex, gridIndices, gridPositions, plotY1, zMin, plotY2, zMax, yUnits, zUnits, Vector3::yAxis(), Vector3::zAxis(), plotX1, AXIS_TICKS_Y_INF, tickSize);
     const auto gridData = Trade::MeshData3D{MeshPrimitive::Lines, gridIndices, {gridPositions}, {}, {}, {}, nullptr};
 
     _vertexBuffer.setData(MeshTools::interleave(functionMeshData.positions(0), functionMeshData.normals(0)));
@@ -314,8 +332,27 @@ MyApp::MyApp(const Arguments& arguments):
     _plotConfig.overwriteGrids = true;
 }
 
+void MyApp::renderAxisLabels(std::vector<TextLabel>& axisLabels) {
+    for (auto& label : axisLabels) {
+        Vector3 posNorm = _model.transformPoint(label.position);
+        posNorm = posNorm - 2 * _plotConfig.axisTickSize * Vector3::yAxis();
+        Vector3 textCoord = (_projection * _rotation).transformPoint(posNorm);
+        Vector2 projTextCoord{textCoord.x(), textCoord.y()};
+        _textShader.setTransformationProjectionMatrix(Matrix3::translation(projTextCoord) * _textViewportScaling);
+        label.textRenderer->mesh().draw(_textShader);
+    }
+}
+
 void MyApp::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Depth).clearColor(Color4{1.0f});
+
+    _textShader.bindVectorTexture(_cache.texture());
+    _textShader.setColor(Color3{0.3f})
+        .setSmoothness(0.075f);
+
+    renderAxisLabels(_xAxisLabels);
+    renderAxisLabels(_yAxisLabels);
+    renderAxisLabels(_zAxisLabels);
 
     _flatShader.setTransformationProjectionMatrix(_projection*transformation());
 
@@ -343,19 +380,6 @@ void MyApp::drawEvent() {
     if (_plotConfig.drawSurfaceLines) {
         _flatShader.setColor(0x555555_rgbf);
         _lines.draw(_flatShader);
-    }
-
-    _textShader.bindVectorTexture(_cache.texture());
-    _textShader.setColor(Color3{0.3f})
-        .setSmoothness(0.075f);
-
-    for (auto& label : _zAxisLabels) {
-        Vector3 posNorm = _model.transformPoint(label.position);
-        posNorm = posNorm - 2 * _plotConfig.axisTickSize * Vector3::yAxis();
-        Vector3 textCoord = (_projection * _rotation).transformPoint(posNorm);
-        Vector2 projTextCoord{textCoord.x(), textCoord.y()};
-        _textShader.setTransformationProjectionMatrix(Matrix3::translation(projTextCoord) * _textViewportScaling);
-        label.textRenderer->mesh().draw(_textShader);
     }
 
     swapBuffers();
