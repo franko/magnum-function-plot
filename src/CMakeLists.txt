@@ -29,6 +29,7 @@ add_definitions(-DWIN32=1 -DHAVE_GLU_H=1 -DHAVE_GL_H=1)
 set(CMAKE_EXE_LINKER_FLAGS ${FOX_LDFLAGS} ${FOX_LDFLAGS_OTHER})
 
 add_executable(gltest gltest.cpp)
+add_executable(fox-glplot fox-glplot.cpp)
 
 # Does not seems to actually work.
 # set_target_properties(gltest PROPERTIES CXX_STANDARD 98)
@@ -36,3 +37,6 @@ add_executable(gltest gltest.cpp)
 
 target_link_libraries(gltest ${FOX_STATIC_LIBRARIES})
 target_include_directories(gltest PUBLIC ${FOX_INCLUDE_DIRS})
+
+target_link_libraries(fox-glplot ${FOX_STATIC_LIBRARIES})
+target_include_directories(fox-glplot PUBLIC ${FOX_INCLUDE_DIRS})
