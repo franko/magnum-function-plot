@@ -9,7 +9,7 @@ find_package(Magnum REQUIRED GL MeshTools Shaders Text Sdl2Application)
 
 corrade_add_resource(FunctionPlot_RESOURCES resources.conf)
 
-add_executable(function-plot Units.cpp FunctionPlot.cpp ${FunctionPlot_RESOURCES})
+add_executable(function-plot Units.cpp FunctionPlot.cpp PlotApp.cpp ${FunctionPlot_RESOURCES})
 target_link_libraries(function-plot PRIVATE
     Magnum::Application
     Magnum::GL

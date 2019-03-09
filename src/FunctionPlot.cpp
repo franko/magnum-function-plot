@@ -1,25 +1,4 @@
-#include <cmath>
-#include <utility>
-#include <Corrade/Utility/Format.h>
-#include <Corrade/PluginManager/Manager.h>
-#include <Magnum/GL/Buffer.h>
-#include <Magnum/GL/DefaultFramebuffer.h>
-#include <Magnum/GL/Mesh.h>
-#include <Magnum/GL/Renderer.h>
-#include <Magnum/MeshTools/Interleave.h>
-#include <Magnum/MeshTools/CompressIndices.h>
-#include <Magnum/Platform/Sdl2Application.h>
-#include <Magnum/Shaders/Phong.h>
-#include <Magnum/Shaders/Flat.h>
-#include <Magnum/Trade/MeshData3D.h>
-#include <Magnum/Math/Algorithms/GaussJordan.h>
-#include <Magnum/Shaders/DistanceFieldVector.h>
-#include <Magnum/Text/AbstractFont.h>
-#include <Magnum/Text/DistanceFieldGlyphCache.h>
-#include <Magnum/Text/Renderer.h>
-#include "CartesianGrid.h"
-#include "PlotConfig.h"
-#include "Units.h"
+#include "FunctionPlot.h"
 
 using namespace Magnum;
 using namespace Magnum::Math::Literals;
@@ -30,11 +9,6 @@ enum {
     AXIS_TICKS_X_SUP = 1 << 1,
     AXIS_TICKS_Y_INF = 1 << 2,
     AXIS_TICKS_Y_SUP = 1 << 3,
-};
-
-struct TextLabel {
-    Containers::Pointer<Text::Renderer2D> textRenderer;
-    Vector3 position;
 };
 
 template <typename Grid, typename F>
@@ -179,53 +153,7 @@ std::vector<TextLabel> axisLabels(const Units& units, const Vector3& axisVector,
     return labels;
 }
 
-class MyApp: public Platform::Application {
-    public:
-        explicit MyApp(const Arguments& arguments);
-
-    private:
-        Matrix4 transformation() const {
-            return _rotation * _model;
-        }
-
-        Matrix3 normalsTransformation() const {
-            // For the normals we need the inverse of the transpose of the matrix, excluding the
-            // translation term.
-            // As the rotation is an orthogonal matrix its inverse of transpose corresponds
-            // to the matrix itself.
-            Matrix3 modelInvT = Math::Algorithms::gaussJordanInverted(_model.rotationScaling()).transposed();
-            return _rotation.rotationScaling() * modelInvT;
-        }
-
-        void renderAxisLabels(std::vector<TextLabel>& axisLabels);
-
-        void drawEvent() override;
-        void mousePressEvent(MouseEvent& event) override;
-        void mouseReleaseEvent(MouseEvent& event) override;
-        void mouseMoveEvent(MouseMoveEvent& event) override;
-
-        GL::Buffer _indexBuffer, _indexLinesBuffer, _vertexBuffer, _vertexLinesBuffer;
-        GL::Buffer _indexGridBuffer, _vertexGridBuffer;
-        GL::Mesh _mesh, _lines;
-        GL::Mesh _baseGrid;
-        Shaders::Phong _shader;
-        Shaders::Flat3D _flatShader;
-
-        PluginManager::Manager<Text::AbstractFont> _manager;
-        Containers::Pointer<Text::AbstractFont> _font;
-        Text::DistanceFieldGlyphCache _cache;
-
-        Shaders::DistanceFieldVector2D _textShader;
-        Matrix3 _textViewportScaling;
-        std::vector<TextLabel> _xAxisLabels, _yAxisLabels, _zAxisLabels;
-
-        Matrix4 _rotation, _model, _projection;
-        Vector2i _previousMousePosition;
-        PlotConfig _plotConfig;
-};
-
-MyApp::MyApp(const Arguments& arguments):
-    Platform::Application{arguments, Configuration{}.setTitle("Function Plot App"), GLConfiguration{}.setSampleCount(16)}, _cache(Vector2i(2048), Vector2i(512), 22)
+FunctionPlot::FunctionPlot(Vector2i windowSize): _cache(Vector2i(2048), Vector2i(512), 22)
 {
     /* Load FreeTypeFont plugin */
     _font = _manager.loadAndInstantiate("FreeTypeFont");
@@ -324,7 +252,7 @@ MyApp::MyApp(const Arguments& arguments):
     _rotation = Matrix4::rotationX(-60.0_degf);
     _projection =
         Matrix4::perspectiveProjection(
-            35.0_degf, Vector2{windowSize()}.aspectRatio(), 0.01f, 100.0f)*
+            35.0_degf, Vector2{windowSize}.aspectRatio(), 0.01f, 100.0f)*
         Matrix4::translation(Vector3::zAxis(- _plotConfig.cameraDistance));
 
     _textViewportScaling = Matrix3::scaling(Vector2::yScale(Vector2(GL::defaultFramebuffer.viewport().size()).aspectRatio()));
@@ -332,7 +260,7 @@ MyApp::MyApp(const Arguments& arguments):
     _plotConfig.overwriteGrids = true;
 }
 
-void MyApp::renderAxisLabels(std::vector<TextLabel>& axisLabels) {
+void FunctionPlot::renderAxisLabels(std::vector<TextLabel>& axisLabels) {
     for (auto& label : axisLabels) {
         Vector3 posNorm = _model.transformPoint(label.position);
         posNorm = posNorm - 2 * _plotConfig.axisTickSize * Vector3::yAxis();
@@ -343,7 +271,7 @@ void MyApp::renderAxisLabels(std::vector<TextLabel>& axisLabels) {
     }
 }
 
-void MyApp::drawEvent() {
+void FunctionPlot::draw() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Depth).clearColor(Color4{1.0f});
 
     _textShader.bindVectorTexture(_cache.texture());
@@ -381,26 +309,15 @@ void MyApp::drawEvent() {
         _flatShader.setColor(0x555555_rgbf);
         _lines.draw(_flatShader);
     }
-
-    swapBuffers();
 }
 
-void MyApp::mousePressEvent(MouseEvent& event) {
-    if(event.button() != MouseEvent::Button::Left) return;
-
-    _previousMousePosition = event.position();
-    event.setAccepted();
+void FunctionPlot::setPosition(const Vector2i& p) {
+    _previousMousePosition = p;
 }
 
-void MyApp::mouseReleaseEvent(MouseEvent& event) {
-    event.setAccepted();
-}
-
-void MyApp::mouseMoveEvent(MouseMoveEvent& event) {
-    if(!(event.buttons() & MouseMoveEvent::Button::Left)) return;
-
+void FunctionPlot::setMovePosition(const Vector2i& p) {
     const Vector2 delta = 3.0f*
-        Vector2{event.position() - _previousMousePosition}/
+        Vector2{p - _previousMousePosition}/
         Vector2{GL::defaultFramebuffer.viewport().size()};
 
     _rotation =
@@ -408,9 +325,5 @@ void MyApp::mouseMoveEvent(MouseMoveEvent& event) {
         _rotation*
         Matrix4::rotationY(Rad{delta.x()});
 
-    _previousMousePosition = event.position();
-    event.setAccepted();
-    redraw();
+    _previousMousePosition = p;
 }
-
-MAGNUM_APPLICATION_MAIN(MyApp)
